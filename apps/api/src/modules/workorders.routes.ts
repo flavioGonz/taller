@@ -171,12 +171,32 @@ export default async function workOrderRoutes(app: FastifyInstance) {
   app.get('/board', { preHandler: [app.authorize('workorder:read', 'workorder:read:own')] }, async (req) => {
     const tenantId = req.scope();
     const user = req.currentUser!;
+    // Mismos filtros que el listado, pero sin paginar: el tablero muestra todo
+    // lo que hay abierto y no puede quedar recortado por un límite de página.
+    const { kinds, insured, q } = req.query as { kinds?: string; insured?: string; q?: string };
+    const kindFilter = (kinds ?? '').split(',').map((k) => k.trim()).filter(Boolean);
+    const term = (q ?? '').trim();
+
     const rows = await prisma.workOrder.findMany({
       where: {
         tenantId,
         deletedAt: null,
         status: { notIn: ['ENTREGADO', 'CANCELADO'] },
         ...(user.role === 'TECNICO' ? { technicianId: user.id } : {}),
+        ...(kindFilter.length > 0 ? { kind: { in: kindFilter as never } } : {}),
+        ...(insured === 'true' ? { insuranceCase: { isNot: null } } : {}),
+        ...(insured === 'false' ? { insuranceCase: { is: null } } : {}),
+        ...(term
+          ? {
+              OR: [
+                { number: { contains: term, mode: 'insensitive' } },
+                { auditId: { contains: term.toUpperCase() } },
+                { vehicle: { plate: { contains: term.toUpperCase() } } },
+                { customer: { lastName: { contains: term, mode: 'insensitive' } } },
+                { customer: { companyName: { contains: term, mode: 'insensitive' } } },
+              ],
+            }
+          : {}),
       },
       orderBy: [{ priority: 'desc' }, { receivedAt: 'asc' }],
       select: {

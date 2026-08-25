@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowDown, ArrowUp, ChevronsUpDown, Rows2, Rows3, Rows4, Inbox } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronsUpDown, Rows2, Rows3, Rows4, Inbox, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui';
 import { Skeleton } from '@/components/ui';
 import { cn } from '@/lib/utils';
 
@@ -49,6 +50,8 @@ export function DataTable<T>({
   columns,
   getKey,
   loading,
+  error,
+  onRetry,
   emptyTitle = 'Nada por acá',
   emptyDescription,
   emptyAction,
@@ -70,6 +73,9 @@ export function DataTable<T>({
   columns: Column<T>[];
   getKey: (row: T, index: number) => string;
   loading?: boolean;
+  /** Si la carga falló, se muestra el motivo en vez de un listado vacío. */
+  error?: { message: string } | null;
+  onRetry?: () => void;
   emptyTitle?: string;
   emptyDescription?: string;
   emptyAction?: React.ReactNode;
@@ -158,7 +164,20 @@ export function DataTable<T>({
         </div>
       )}
 
-      {loading && !rows ? (
+      {error ? (
+        <div className="flex flex-col items-center gap-2 px-6 py-14 text-center">
+          <span className="grid size-12 place-items-center rounded-full bg-[var(--falla-bg)] text-[var(--falla)]">
+            <AlertTriangle className="size-6" aria-hidden />
+          </span>
+          <p className="text-[15px] font-semibold">No se pudo cargar el listado</p>
+          <p className="max-w-md text-[13px] text-[var(--muted)]">{error.message}</p>
+          {onRetry && (
+            <Button size="sm" variant="secondary" className="mt-2" onClick={onRetry}>
+              <RefreshCw className="size-3.5" aria-hidden /> Reintentar
+            </Button>
+          )}
+        </div>
+      ) : loading && !rows ? (
         <div className="space-y-2 p-3">
           {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-11" />)}
         </div>

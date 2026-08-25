@@ -36,7 +36,7 @@ export default function PostventaPage() {
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { data, loading, refetch } = useApi<Paginated<FollowUp>>(`/follow-ups${qs({ page: 1, limit: 50, status, kind })}`);
+  const { data, loading, error: loadError, refetch } = useApi<Paginated<FollowUp>>(`/follow-ups${qs({ page: 1, limit: 50, status, kind })}`);
   const stats = useApi<Stats>('/follow-ups/stats');
   const customers = useApi<Paginated<CustomerOpt>>(creating ? '/customers?page=1&limit=200' : null);
 
@@ -240,6 +240,8 @@ export default function PostventaPage() {
           <CardBody className="p-0">
             <DataTable
               id="postventa"
+              error={loadError}
+              onRetry={refetch}
               rows={data?.rows}
               loading={loading}
               getKey={(f) => f.id}

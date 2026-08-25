@@ -22,7 +22,7 @@ export default function ServiciosPage() {
   const [editing, setEditing] = useState<Service | null>(null);
   const [removing, setRemoving] = useState<Service | null>(null);
   const [busy, setBusy] = useState(false);
-  const { data, loading, refetch } = useApi<Paginated<Service>>('/services?page=1&limit=100');
+  const { data, loading, error, refetch } = useApi<Paginated<Service>>('/services?page=1&limit=100');
 
   async function eliminar() {
     if (!removing) return;
@@ -118,6 +118,8 @@ export default function ServiciosPage() {
           <CardBody className="p-0">
             <DataTable
               id="servicios"
+              error={error}
+              onRetry={refetch}
               rows={filtrados}
               loading={loading && !data}
               getKey={(s) => s.id}

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Search, LayoutGrid, List, Columns3, Filter, X, Clock, AlertTriangle,
-  Car, Wrench, Package, Fingerprint, User, ShieldCheck, CircleDollarSign, Timer,
+  Car, Wrench, Package, Fingerprint, User, ShieldCheck, CircleDollarSign, Timer, RefreshCw,
 } from 'lucide-react';
 import { Button, Card, CardBody, Input, Select, Skeleton, Badge, Stat, Segmented, EmptyState } from '@/components/ui';
 import { DataTable, type Column } from '@/components/data-table';
@@ -74,11 +74,12 @@ export function WorkOrdersView({
     }
   }
 
-  // El tablero y las fichas piden todo lo abierto; la tabla pagina.
-  const openPath = `/work-orders${qs({ ...fixedQuery, page: 1, limit: 300, status: '', q })}`;
+  // El tablero y las fichas usan /board: devuelve todo lo abierto sin paginar,
+  // así ninguna orden queda afuera. La tabla sí pagina.
+  const openPath = `/work-orders/board${qs({ ...fixedQuery, q })}`;
   const tablePath = `/work-orders${qs({ ...fixedQuery, page, limit: 25, q, status, kind, technicianId: tech })}`;
 
-  const open = useApi<Paginated<WorkOrderRow>>(view !== 'table' ? openPath : null);
+  const open = useApi<WorkOrderRow[]>(view !== 'table' ? openPath : null);
   const table = useApi<Paginated<WorkOrderRow>>(view === 'table' ? tablePath : null);
   const techs = useApi<{ rows: { id: string; firstName: string; lastName: string }[] }>('/users?page=1&limit=100&role=TECNICO');
 
@@ -88,7 +89,7 @@ export function WorkOrdersView({
   useSocketEvent(SOCKET_EVENTS.WORKORDER_UPDATED, reload);
 
   const rows = useMemo(() => {
-    let list = open.data?.rows ?? [];
+    let list = open.data ?? [];
     if (kind) list = list.filter((r) => r.kind === kind);
     if (tech) list = list.filter((r) => r.technician?.id === tech);
     if (status) list = list.filter((r) => r.status === status);
@@ -109,6 +110,7 @@ export function WorkOrdersView({
   }, [rows]);
 
   const filtersOn = !!(q || status || kind || tech || lateOnly);
+  const loadError = view === 'table' ? table.error : open.error;
   const clear = () => { setQ(''); setStatus(''); setKind(''); setTech(''); setLateOnly(false); setPage(1); };
 
   /* ------------------------------------------------------------- columnas */
@@ -322,6 +324,23 @@ export function WorkOrdersView({
           />
         </CardBody>
       </Card>
+
+      {loadError && (
+        <Card>
+          <CardBody className="flex flex-wrap items-center gap-3 !border-[var(--falla-bd)] bg-[var(--falla-bg)]">
+            <AlertTriangle className="size-5 shrink-0 text-[var(--falla)]" aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13.5px] font-semibold text-[var(--falla)]">
+                No se pudieron cargar las órdenes
+              </span>
+              <span className="block text-[12px] text-[var(--muted)]">{loadError.message}</span>
+            </span>
+            <Button size="sm" variant="secondary" onClick={reload}>
+              <RefreshCw className="size-3.5" aria-hidden /> Reintentar
+            </Button>
+          </CardBody>
+        </Card>
+      )}
 
       {/* --------------------------------------------------------- contenido */}
       <AnimatePresence mode="wait" initial={false}>

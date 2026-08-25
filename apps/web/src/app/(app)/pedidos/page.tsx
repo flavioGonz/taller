@@ -39,7 +39,7 @@ export default function PedidosPage() {
     { description: '', quantity: 1, unitCost: 0 },
   ]);
 
-  const { data, loading, refetch } = useApi<Paginated<Order>>(`/parts-orders${qs({ page: 1, limit: 50, status })}`);
+  const { data, loading, error, refetch } = useApi<Paginated<Order>>(`/parts-orders${qs({ page: 1, limit: 50, status })}`);
   const suppliers = useApi<Supplier[]>('/inventory/suppliers');
   const parts = useApi<{ rows: Part[] }>('/inventory/parts?page=1&limit=200');
   const wos = useApi<{ rows: WO[] }>('/work-orders?page=1&limit=50&status=ESPERA_REPUESTO');
@@ -274,6 +274,8 @@ export default function PedidosPage() {
           <CardBody className="p-0">
             <DataTable
               id="pedidos"
+              error={error}
+              onRetry={refetch}
               rows={data?.rows}
               loading={loading}
               getKey={(o) => o.id}

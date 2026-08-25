@@ -31,7 +31,7 @@ const TONE: Record<QuoteStatus, 'neutral' | 'info' | 'success' | 'warn' | 'dange
 export default function PresupuestosPage() {
   const [status, setStatus] = useState('');
   const [q, setQ] = useState('');
-  const { data, loading, refetch } = useApi<Quote[]>(`/quotes${qs({ status })}`);
+  const { data, loading, error, refetch } = useApi<Quote[]>(`/quotes${qs({ status })}`);
 
   useSocketEvent(SOCKET_EVENTS.QUOTE_DECIDED, () => refetch());
   useSocketEvent(SOCKET_EVENTS.QUOTE_SENT, () => refetch());
@@ -146,6 +146,8 @@ export default function PresupuestosPage() {
           <CardBody className="p-0">
             <DataTable
               id="presupuestos"
+              error={error}
+              onRetry={refetch}
               rows={rows}
               loading={loading && !data}
               getKey={(r) => r.id}

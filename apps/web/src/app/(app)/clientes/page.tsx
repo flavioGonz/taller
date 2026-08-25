@@ -33,7 +33,7 @@ export default function ClientesPage() {
   const [removing, setRemoving] = useState<Row | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const { data, loading, refetch } = useApi<Paginated<Row>>(`/customers${qs({ page, limit: 20, q })}`);
+  const { data, loading, error, refetch } = useApi<Paginated<Row>>(`/customers${qs({ page, limit: 20, q })}`);
 
   async function eliminar() {
     if (!removing) return;
@@ -169,6 +169,8 @@ export default function ClientesPage() {
           <CardBody className="p-0">
             <DataTable
               id="clientes"
+              error={error}
+              onRetry={refetch}
               rows={data?.rows}
               loading={loading}
               getKey={(c) => c.id}

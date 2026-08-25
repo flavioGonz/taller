@@ -147,9 +147,15 @@ export function WorkOrderCard({ row, compact = false }: { row: WorkOrderRow; com
           <ProcessBar kind={row.kind} status={row.status} showLabel />
         </div>
 
-        <div className="flex items-center justify-between border-t border-[var(--border)] pt-2">
-          <span className="text-[11px] text-[var(--subtle)]">{STATUS_LABELS[row.status]}</span>
-          <span className="mono text-[13px] font-bold">{formatMoney(row.grandTotal, row.currency)}</span>
+        <div className="flex items-center justify-between gap-2 border-t border-[var(--border)] pt-2">
+          <span className="truncate text-[11px] text-[var(--subtle)]">
+            {row.promisedAt
+              ? `Entrega ${formatDate(row.promisedAt)}`
+              : row.bay?.name
+                ? row.bay.name
+                : `Ingresó ${formatDate(row.receivedAt)}`}
+          </span>
+          <span className="mono shrink-0 text-[13px] font-bold">{formatMoney(row.grandTotal, row.currency)}</span>
         </div>
       </div>
     </Link>

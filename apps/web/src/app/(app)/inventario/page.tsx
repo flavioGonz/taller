@@ -26,7 +26,7 @@ export default function InventarioPage() {
   const [open, setOpen] = useState(false);
   const [move, setMove] = useState<{ part: Part; type: 'ENTRADA' | 'SALIDA' } | null>(null);
   const [nuevaFoto, setNuevaFoto] = useState<string | null>(null);
-  const { data, loading, refetch } = useApi<Paginated<Part>>(`/inventory/parts${qs({ page, limit: 20, q, lowStock: lowOnly ? 'true' : '' })}`);
+  const { data, loading, error, refetch } = useApi<Paginated<Part>>(`/inventory/parts${qs({ page, limit: 20, q, lowStock: lowOnly ? 'true' : '' })}`);
 
   useSocketEvent(SOCKET_EVENTS.STOCK_MOVED, () => refetch());
 
@@ -227,6 +227,8 @@ export default function InventarioPage() {
           <CardBody className="p-0">
             <DataTable
               id="inventario"
+              error={error}
+              onRetry={refetch}
               rows={data?.rows}
               loading={loading}
               getKey={(p) => p.id}

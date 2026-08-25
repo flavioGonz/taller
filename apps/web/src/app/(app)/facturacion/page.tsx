@@ -27,7 +27,7 @@ export default function FacturacionPage() {
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
   const [paying, setPaying] = useState<Doc | null>(null);
-  const { data, loading, refetch } = useApi<Paginated<Doc>>(`/billing/documents${qs({ page, limit: 20, type, status })}`);
+  const { data, loading, error, refetch } = useApi<Paginated<Doc>>(`/billing/documents${qs({ page, limit: 20, type, status })}`);
 
   async function registrarPago(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -165,6 +165,8 @@ export default function FacturacionPage() {
           <CardBody className="p-0">
             <DataTable
               id="facturacion"
+              error={error}
+              onRetry={refetch}
               rows={data?.rows}
               loading={loading}
               getKey={(d) => d.id}
