@@ -1,0 +1,30 @@
+[Unit]
+Description=Taller Silver — Dashboard web (Next.js standalone)
+After=network-online.target taller-api.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=taller
+Group=taller
+WorkingDirectory=/opt/taller-silver/src/apps/web/.next/standalone/apps/web
+EnvironmentFile=/etc/taller-silver/taller.env
+Environment=NODE_ENV=production
+# Sólo el nginx interno llega al dashboard; no escucha en la LAN
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=3100
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=3
+MemoryMax=512M
+MemoryHigh=400M
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/log/taller-silver /opt/taller-silver/src/apps/web/.next
+StandardOutput=append:/var/log/taller-silver/web.log
+StandardError=append:/var/log/taller-silver/web.err.log
+
+[Install]
+WantedBy=multi-user.target

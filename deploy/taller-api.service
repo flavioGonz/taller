@@ -1,0 +1,28 @@
+[Unit]
+Description=Taller Silver — Core API (Fastify + Prisma + Socket.io)
+After=network-online.target postgresql.service
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=taller
+Group=taller
+WorkingDirectory=/opt/taller-silver/src/apps/api
+EnvironmentFile=/etc/taller-silver/taller.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node dist/server.js
+Restart=always
+RestartSec=3
+MemoryMax=640M
+MemoryHigh=512M
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/log/taller-silver /var/lib/taller-silver
+StandardOutput=append:/var/log/taller-silver/api.log
+StandardError=append:/var/log/taller-silver/api.err.log
+
+[Install]
+WantedBy=multi-user.target

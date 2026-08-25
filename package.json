@@ -1,0 +1,24 @@
+{
+  "name": "taller-silver",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Taller Silver Core Engine — plataforma modular multi-tenant para gestión de talleres",
+  "workspaces": ["packages/*", "apps/*"],
+  "engines": { "node": ">=20.11" },
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev -w @taller/api\" \"npm run dev -w @taller/web\"",
+    "build": "npm run build -w @taller/shared && npm run build -w @taller/api && npm run build -w @taller/web",
+    "build:api": "npm run build -w @taller/shared && npm run build -w @taller/api",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "db:generate": "npm run db:generate -w @taller/api",
+    "db:migrate": "npm run db:migrate -w @taller/api",
+    "db:deploy": "npm run db:deploy -w @taller/api",
+    "db:seed": "npm run db:seed -w @taller/api",
+    "db:studio": "npm run db:studio -w @taller/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3"
+  }
+}

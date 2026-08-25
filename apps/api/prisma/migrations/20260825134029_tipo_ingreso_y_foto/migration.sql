@@ -1,0 +1,8 @@
+-- CreateEnum
+CREATE TYPE "WorkOrderKind" AS ENUM ('MANTENIMIENTO', 'REPARACION', 'DIAGNOSTICO', 'CHAPA_PINTURA', 'NEUMATICOS', 'GARANTIA', 'SINIESTRO', 'PREENTREGA');
+
+-- AlterTable
+ALTER TABLE "vehicles" ADD COLUMN     "photoUrl" TEXT;
+
+-- AlterTable
+ALTER TABLE "work_orders" ADD COLUMN     "kind" "WorkOrderKind" NOT NULL DEFAULT 'REPARACION';

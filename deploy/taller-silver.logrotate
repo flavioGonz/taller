@@ -1,0 +1,11 @@
+/var/log/taller-silver/*.log {
+    daily
+    rotate 7
+    maxsize 20M
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    su taller taller
+}

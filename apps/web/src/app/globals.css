@@ -1,0 +1,234 @@
+@import "tailwindcss";
+
+/* =============================================================================
+   TALLER SILVER — Sistema de diseño
+   Mismos tokens y lenguaje visual que Preventis (SaaS claro, azul Infratec),
+   con tema claro/oscuro. El sidebar usa la superficie del tema, no un color fijo.
+   ============================================================================= */
+:root {
+  --brand-50:#eff6ff; --brand-100:#dbeafe; --brand-200:#bfdbfe;
+  --brand-500:#2563eb; --brand-600:#1d4ed8; --brand-700:#1e40af; --brand-900:#172554;
+  --brand: var(--brand-600);
+  --brand-soft: var(--brand-50);
+
+  --bg:#f6f8fb; --surface:#ffffff; --surface-2:#f8fafc;
+  --border:#e8edf3; --border-strong:#dbe3ec;
+  --text:#0f172a; --muted:#64748b; --subtle:#94a3b8;
+
+  --ok:#15803d; --ok-bg:#dcfce7; --ok-bd:#bbf7d0;
+  --falla:#dc2626; --falla-bg:#fef2f2; --falla-bd:#fecaca;
+  --warn:#b45309; --warn-bg:#fffbeb; --warn-bd:#fde68a;
+  --info:#1d4ed8; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+
+  --r-sm:8px; --r:12px; --r-lg:16px; --r-xl:20px;
+  --sh-xs:0 1px 2px rgba(16,24,40,.05);
+  --sh-sm:0 1px 3px rgba(16,24,40,.07), 0 1px 2px rgba(16,24,40,.04);
+  --sh-md:0 6px 16px rgba(16,24,40,.08);
+  --sh-lg:0 16px 40px rgba(2,6,23,.16);
+  --sh-pop:0 24px 60px rgba(2,6,23,.28);
+  --nav-w:268px;
+
+  /* alias heredados */
+  --text-muted: var(--muted);
+  --radius-app: var(--r);
+}
+
+:root[data-theme="dark"] {
+  --brand-50:#16263f; --brand-100:#1b2f4d; --brand-200:#27406a;
+  --brand-500:#3b82f6; --brand-600:#60a5fa; --brand-700:#93c5fd; --brand-900:#bfdbfe;
+  --brand:#2563eb; --brand-soft:#16263f;
+
+  --bg:#0b1220; --surface:#131c2e; --surface-2:#0f1828;
+  --border:#243349; --border-strong:#33445e;
+  --text:#e8eef7; --muted:#9fb0c4; --subtle:#6f8197;
+
+  --ok:#4ade80; --ok-bg:#10301f; --ok-bd:#1c5235;
+  --falla:#f87171; --falla-bg:#3a1620; --falla-bd:#5b2330;
+  --warn:#fbbf24; --warn-bg:#352a12; --warn-bd:#5a4516;
+  --info:#60a5fa; --info-bg:#16263f; --info-bd:#274064;
+
+  --sh-xs:0 1px 2px rgba(0,0,0,.4);
+  --sh-sm:0 1px 3px rgba(0,0,0,.45);
+  --sh-md:0 6px 16px rgba(0,0,0,.5);
+  --sh-lg:0 16px 40px rgba(0,0,0,.6);
+  --sh-pop:0 24px 60px rgba(0,0,0,.7);
+}
+
+@theme inline {
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--border);
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4 { margin: 0; font-weight: 700; letter-spacing: -.01em; }
+
+/* transición suave al cambiar de tema */
+body, .ts-side, .ts-card, .ts-btn, .ts-badge, .ts-input, .ts-topbar, .ts-nav-item, .ts-stat, .ts-chip {
+  transition: background-color .28s ease, color .28s ease, border-color .28s ease;
+}
+
+/* ------------------------------------------------------------- navegación */
+.ts-side {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+.ts-brand-logo {
+  background: linear-gradient(135deg, var(--brand-500), var(--brand-700));
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, .35);
+}
+.ts-nav-section {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--subtle); font-weight: 700; padding: 14px 10px 6px;
+}
+.ts-nav-item {
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 11px; border-radius: 10px;
+  color: var(--muted); font-weight: 500;
+}
+.ts-nav-item:hover { background: var(--surface-2); color: var(--text); }
+.ts-nav-item[aria-current="page"] {
+  background: var(--brand-soft); color: var(--brand-700); font-weight: 600;
+}
+.ts-nav-item[aria-current="page"] svg { color: var(--brand-600); }
+.ts-nav-item svg { color: var(--subtle); flex: none; }
+.ts-nav-item[aria-current="page"]:hover { background: var(--brand-soft); color: var(--brand-700); }
+
+.ts-topbar {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+}
+
+/* ---------------------------------------------------------------- tarjetas */
+.ts-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-sm);
+}
+.ts-card-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+}
+.ts-card-title { font-weight: 650; font-size: 15px; }
+
+.ts-stat {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 14px 16px; box-shadow: var(--sh-xs);
+}
+.ts-stat-ic {
+  width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+  background: var(--brand-soft); color: var(--brand-600); flex: none;
+}
+.ts-stat-ic.ok { background: var(--ok-bg); color: var(--ok); }
+.ts-stat-ic.warn { background: var(--warn-bg); color: var(--warn); }
+.ts-stat-ic.danger { background: var(--falla-bg); color: var(--falla); }
+
+/* ---------------------------------------------------------------- botones */
+.ts-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  background: var(--brand); color: #fff; border: 1px solid transparent; border-radius: 10px;
+  font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap;
+  transition: .13s; box-shadow: 0 1px 2px rgba(37, 99, 235, .25);
+}
+.ts-btn:hover:not(:disabled) { background: var(--brand-700); }
+.ts-btn:active:not(:disabled) { transform: translateY(1px); }
+.ts-btn:disabled { opacity: .5; cursor: default; box-shadow: none; }
+.ts-btn.sec {
+  background: var(--surface); color: var(--brand-700);
+  border-color: var(--border-strong); box-shadow: var(--sh-xs);
+}
+.ts-btn.sec:hover:not(:disabled) { background: var(--brand-soft); border-color: var(--brand-200); }
+.ts-btn.ghost { background: transparent; color: var(--muted); border-color: transparent; box-shadow: none; }
+.ts-btn.ghost:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
+.ts-btn.danger { background: var(--falla); box-shadow: 0 1px 2px rgba(220, 38, 38, .25); }
+.ts-btn.danger:hover:not(:disabled) { background: #b91c1c; }
+
+/* --------------------------------------------------------------- formularios */
+.ts-label { display: block; font-size: 12.5px; color: var(--muted); font-weight: 600; margin-bottom: 5px; }
+.ts-input {
+  width: 100%; padding: 10px 12px;
+  border: 1px solid var(--border-strong); border-radius: 10px;
+  font-size: 14px; font-family: inherit;
+  background: var(--surface); color: var(--text); transition: .13s;
+}
+.ts-input::placeholder { color: var(--subtle); }
+.ts-input:focus {
+  outline: none; border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .14);
+}
+.ts-input[aria-invalid="true"] { border-color: var(--falla); }
+select.ts-input {
+  appearance: none; padding-right: 34px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 11px center;
+}
+textarea.ts-input { min-height: 78px; resize: vertical; }
+
+/* ------------------------------------------------------------------ badges */
+.ts-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; border: 1px solid transparent;
+}
+.ts-badge.ok { background: var(--ok-bg); color: var(--ok); border-color: var(--ok-bd); }
+.ts-badge.falla { background: var(--falla-bg); color: var(--falla); border-color: var(--falla-bd); }
+.ts-badge.warn { background: var(--warn-bg); color: var(--warn); border-color: var(--warn-bd); }
+.ts-badge.info { background: var(--info-bg); color: var(--info); border-color: var(--info-bd); }
+.ts-badge.gris { background: var(--surface-2); color: var(--muted); border-color: var(--border); }
+.ts-badge.brand { background: var(--brand-soft); color: var(--brand-700); border-color: var(--brand-200); }
+
+.ts-chip {
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: 999px;
+  padding: 6px 13px; font-size: 13px; cursor: pointer; color: var(--muted); font-weight: 500;
+}
+.ts-chip:hover { border-color: var(--brand-200); }
+.ts-chip[aria-pressed="true"] { background: var(--brand-soft); color: var(--brand-700); border-color: var(--brand-200); }
+
+/* ------------------------------------------------------------------ tablas */
+.ts-table { width: 100%; font-size: 14px; border-collapse: collapse; }
+.ts-table th {
+  text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--subtle); font-weight: 700; padding: 11px 16px;
+  background: var(--surface-2); border-bottom: 1px solid var(--border);
+}
+.ts-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.ts-table tbody tr:last-child td { border-bottom: 0; }
+.ts-table tbody tr:hover td { background: var(--surface-2); }
+
+/* --------------------------------------------------------- encabezado de página */
+.ts-page-title { font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+.ts-page-desc { color: var(--muted); font-size: 14px; margin-top: 2px; }
+
+/* --------------------------------------------------------------- utilidades */
+.focus-ring:focus-visible { outline: 2px solid var(--brand-500); outline-offset: 2px; }
+.mono { font-variant-numeric: tabular-nums; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+@view-transition { navigation: auto; }
+::view-transition-old(root) { animation: fade-out 160ms ease both; }
+::view-transition-new(root) { animation: fade-in 220ms ease both; }
+@keyframes fade-in  { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
