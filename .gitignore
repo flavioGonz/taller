@@ -5,5 +5,7 @@ out/
 *.log
 .env
 .env.local
-*.tsbuildinfo
+.DS_Store
+apps/api/prisma/migrations/dev.db*
 coverage/
+.turbo/

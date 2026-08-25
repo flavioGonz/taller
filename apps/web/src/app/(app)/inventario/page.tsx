@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { Plus, Search, X, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
+import { Plus, Search, X, ArrowDownToLine, ArrowUpFromLine, Hash, Tag, Factory, Layers, Coins, DollarSign, TriangleAlert, StickyNote } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
 import { Button, Card, CardBody, CardHeader, CardTitle, Input, Select, Skeleton, EmptyState, Table, Th, Td, Badge } from '@/components/ui';
 import { useApi } from '@/hooks/use-api';
@@ -63,13 +63,13 @@ export default function InventarioPage() {
             <CardHeader><CardTitle>Nuevo repuesto</CardTitle></CardHeader>
             <CardBody>
               <form onSubmit={crearRepuesto} className="grid gap-4 md:grid-cols-4">
-                <Input label="SKU" name="sku" required />
-                <div className="md:col-span-2"><Input label="Nombre" name="name" required /></div>
-                <Input label="Marca" name="brand" />
-                <Input label="Categoría" name="category" />
-                <Input label="Costo" name="cost" type="number" step="0.01" min={0} defaultValue={0} />
-                <Input label="Precio de venta" name="price" type="number" step="0.01" min={0} defaultValue={0} />
-                <Input label="Stock mínimo" name="minStock" type="number" step="1" min={0} defaultValue={0} />
+                <Input label="SKU" name="sku" icon={<Hash className="size-3.5" aria-hidden />} required tip="Código interno único del repuesto" />
+                <div className="md:col-span-2"><Input label="Nombre" name="name" icon={<Tag className="size-3.5" aria-hidden />} required /></div>
+                <Input label="Marca" name="brand" icon={<Factory className="size-3.5" aria-hidden />} />
+                <Input label="Categoría" name="category" icon={<Layers className="size-3.5" aria-hidden />} />
+                <Input label="Costo" name="cost" type="number" step="0.01" min={0} defaultValue={0} icon={<Coins className="size-3.5" aria-hidden />} tip="Se actualiza solo al recibir un pedido del proveedor" />
+                <Input label="Precio de venta" name="price" type="number" step="0.01" min={0} defaultValue={0} icon={<DollarSign className="size-3.5" aria-hidden />} />
+                <Input label="Stock mínimo" name="minStock" type="number" step="1" min={0} defaultValue={0} icon={<TriangleAlert className="size-3.5" aria-hidden />} tip="Por debajo de este valor el repuesto aparece en el tablero" />
                 <div className="md:col-span-4"><Button type="submit">Guardar repuesto</Button></div>
               </form>
             </CardBody>
@@ -83,9 +83,9 @@ export default function InventarioPage() {
             </CardHeader>
             <CardBody>
               <form onSubmit={registrarMovimiento} className="grid gap-4 md:grid-cols-4">
-                <Input label="Cantidad" name="quantity" type="number" step="0.01" min={0.01} required autoFocus />
-                {move.type === 'ENTRADA' && <Input label="Costo unitario" name="unitCost" type="number" step="0.01" min={0} />}
-                <div className="md:col-span-2"><Input label="Nota / remito" name="note" /></div>
+                <Input label="Cantidad" name="quantity" type="number" step="0.01" min={0.01} icon={<Layers className="size-3.5" aria-hidden />} required autoFocus />
+                {move.type === 'ENTRADA' && <Input label="Costo unitario" name="unitCost" type="number" step="0.01" min={0} icon={<Coins className="size-3.5" aria-hidden />} />}
+                <div className="md:col-span-2"><Input label="Nota / remito" name="note" icon={<StickyNote className="size-3.5" aria-hidden />} /></div>
                 <div className="md:col-span-4"><Button type="submit">Registrar movimiento</Button></div>
               </form>
             </CardBody>

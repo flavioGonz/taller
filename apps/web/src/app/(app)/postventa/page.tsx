@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { PhoneCall, Check, Star } from 'lucide-react';
+import { PhoneCall, Check, Star, Filter, Tag, MessageSquare } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
 import { Button, Card, CardBody, CardHeader, CardTitle, Select, Textarea, Skeleton, EmptyState, Table, Th, Td, Badge } from '@/components/ui';
 import { useApi } from '@/hooks/use-api';
@@ -52,11 +52,11 @@ export default function PostventaPage() {
             <CardHeader><CardTitle>Cerrar seguimiento · {FOLLOWUP_LABELS[closing.kind]}</CardTitle></CardHeader>
             <CardBody>
               <form onSubmit={cerrar} className="grid gap-4 md:grid-cols-4">
-                <Select label="Resultado" name="result" defaultValue="HECHO">
+                <Select label="Resultado" name="result" icon={<Check className="size-3.5" aria-hidden />} defaultValue="HECHO">
                   <option value="HECHO">Contactado</option>
                   <option value="DESCARTADO">Descartar</option>
                 </Select>
-                <Select label="Canal" name="channel" defaultValue="TELEFONO">
+                <Select label="Canal" name="channel" icon={<PhoneCall className="size-3.5" aria-hidden />} defaultValue="TELEFONO">
                   {APPROVAL_CHANNELS.map((c) => <option key={c} value={c}>{CHANNEL_LABELS[c]}</option>)}
                 </Select>
                 {closing.kind === 'SATISFACCION' && (
@@ -64,7 +64,7 @@ export default function PostventaPage() {
                     {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{'★'.repeat(n)}</option>)}
                   </Select>
                 )}
-                <div className="md:col-span-4"><Textarea label="Qué dijo el cliente" name="notes" rows={2} /></div>
+                <div className="md:col-span-4"><Textarea label="Qué dijo el cliente" name="notes" icon={<MessageSquare className="size-3.5" aria-hidden />} rows={2} /></div>
                 <div className="flex gap-2 md:col-span-4">
                   <Button type="submit" size="sm"><Check className="size-4" aria-hidden /> Guardar</Button>
                   <Button type="button" size="sm" variant="secondary" onClick={() => setClosing(null)}>Cancelar</Button>
@@ -77,7 +77,7 @@ export default function PostventaPage() {
         <Card>
           <CardBody className="flex flex-wrap gap-4">
             <div className="w-48">
-              <Select label="Estado" value={status} onChange={(e) => setStatus(e.target.value)}>
+              <Select label="Estado" icon={<Filter className="size-3.5" aria-hidden />} value={status} onChange={(e) => setStatus(e.target.value)}>
                 <option value="PENDIENTE">Pendientes</option>
                 <option value="HECHO">Hechos</option>
                 <option value="DESCARTADO">Descartados</option>
@@ -85,7 +85,7 @@ export default function PostventaPage() {
               </Select>
             </div>
             <div className="w-56">
-              <Select label="Tipo" value={kind} onChange={(e) => setKind(e.target.value)}>
+              <Select label="Tipo" icon={<Tag className="size-3.5" aria-hidden />} value={kind} onChange={(e) => setKind(e.target.value)}>
                 <option value="">Todos</option>
                 {FOLLOWUP_KINDS.map((k) => <option key={k} value={k}>{FOLLOWUP_LABELS[k]}</option>)}
               </Select>

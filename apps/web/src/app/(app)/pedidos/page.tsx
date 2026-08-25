@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { Truck, Plus, X, PackageCheck } from 'lucide-react';
+import { Truck, Plus, X, PackageCheck, Factory, ClipboardList, CalendarDays, Hash, StickyNote, Layers, Coins } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
 import { Button, Card, CardBody, CardHeader, CardTitle, Input, Select, Textarea, Skeleton, EmptyState, Table, Th, Td, Badge } from '@/components/ui';
 import { useApi } from '@/hooks/use-api';
@@ -93,16 +93,16 @@ export default function PedidosPage() {
             <CardBody>
               <form onSubmit={crear} className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-4">
-                  <Select label="Proveedor" name="supplierId">
+                  <Select label="Proveedor" name="supplierId" icon={<Factory className="size-3.5" aria-hidden />}>
                     <option value="">Sin definir</option>
                     {(suppliers.data ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </Select>
-                  <Select label="OT asociada" name="workOrderId">
+                  <Select label="OT asociada" name="workOrderId" icon={<ClipboardList className="size-3.5" aria-hidden />} tip="Si el pedido es para una OT puntual, queda enlazado a su etapa de espera de repuestos">
                     <option value="">Stock general</option>
                     {(wos.data?.rows ?? []).map((w) => <option key={w.id} value={w.id}>{w.number} — {w.vehicle.plate}</option>)}
                   </Select>
-                  <Input label="Llegada estimada" name="expectedAt" type="date" />
-                  <Input label="Referencia" name="reference" placeholder="Nº de orden del proveedor" />
+                  <Input label="Llegada estimada" name="expectedAt" type="date" icon={<CalendarDays className="size-3.5" aria-hidden />} />
+                  <Input label="Referencia" name="reference" icon={<Hash className="size-3.5" aria-hidden />} placeholder="Nº de orden del proveedor" />
                 </div>
 
                 <div className="ts-card overflow-hidden">
@@ -147,7 +147,7 @@ export default function PedidosPage() {
                   </div>
                 </div>
 
-                <Textarea label="Notas" name="notes" rows={2} />
+                <Textarea label="Notas" name="notes" icon={<StickyNote className="size-3.5" aria-hidden />} rows={2} />
                 <Button type="submit">Crear pedido</Button>
               </form>
             </CardBody>
@@ -170,7 +170,7 @@ export default function PedidosPage() {
                     </div>
                   </div>
                 ))}
-                <Input label="Nota / remito" name="note" />
+                <Input label="Nota / remito" name="note" icon={<StickyNote className="size-3.5" aria-hidden />} />
                 <Button type="submit"><PackageCheck className="size-4" aria-hidden /> Registrar recepción</Button>
                 <p className="text-[11.5px] text-[var(--muted)]">Lo recibido entra al stock automáticamente y actualiza el costo del repuesto.</p>
               </form>

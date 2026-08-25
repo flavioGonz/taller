@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Hash, Wrench, Layers, Clock, DollarSign } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
 import { Button, Card, CardBody, CardHeader, CardTitle, Input, Skeleton, EmptyState, Table, Th, Td } from '@/components/ui';
 import { useApi } from '@/hooks/use-api';
@@ -40,11 +40,11 @@ export default function ServiciosPage() {
             <CardHeader><CardTitle>Nuevo servicio</CardTitle></CardHeader>
             <CardBody>
               <form onSubmit={onSubmit} className="grid gap-4 md:grid-cols-5">
-                <Input label="Código" name="code" placeholder="SRV-010" />
-                <div className="md:col-span-2"><Input label="Nombre" name="name" required /></div>
-                <Input label="Categoría" name="category" />
-                <Input label="Horas estimadas" name="estimatedHours" type="number" step="0.25" min={0} />
-                <Input label="Precio" name="price" type="number" step="0.01" min={0} required />
+                <Input label="Código" name="code" icon={<Hash className="size-3.5" aria-hidden />} placeholder="SRV-010" />
+                <div className="md:col-span-2"><Input label="Nombre" name="name" icon={<Wrench className="size-3.5" aria-hidden />} required /></div>
+                <Input label="Categoría" name="category" icon={<Layers className="size-3.5" aria-hidden />} />
+                <Input label="Horas estimadas" name="estimatedHours" type="number" step="0.25" min={0} icon={<Clock className="size-3.5" aria-hidden />} tip="Sirve para calcular la carga del taller y la mano de obra" />
+                <Input label="Precio" name="price" type="number" step="0.01" min={0} icon={<DollarSign className="size-3.5" aria-hidden />} required />
                 <div className="md:col-span-5"><Button type="submit">Guardar servicio</Button></div>
               </form>
             </CardBody>

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { CalendarDays, Plus, X, Car, Phone, ArrowRight } from 'lucide-react';
+import { CalendarDays, Plus, X, Car, Phone, ArrowRight, User, Hash, Clock, MessageSquare, StickyNote } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
 import { Button, Card, CardBody, CardHeader, CardTitle, Input, Select, Textarea, Skeleton, EmptyState, Badge } from '@/components/ui';
 import { useApi } from '@/hooks/use-api';
@@ -118,28 +118,28 @@ export default function AgendaPage() {
             <CardBody>
               <form onSubmit={crear} className="grid gap-4 md:grid-cols-4">
                 <div className="md:col-span-2">
-                  <Select label="Cliente" name="customerId" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+                  <Select label="Cliente" name="customerId" icon={<User className="size-3.5" aria-hidden />} value={customerId} onChange={(e) => setCustomerId(e.target.value)} tip="Si es un cliente nuevo, dejalo vacío y anotá nombre y teléfono">
                     <option value="">Sin ficha (cita rápida)</option>
                     {(customers.data ?? []).map((c) => <option key={c.id} value={c.id}>{customerName(c)}</option>)}
                   </Select>
                 </div>
-                <Select label="Vehículo" name="vehicleId" disabled={!customerId}>
+                <Select label="Vehículo" name="vehicleId" icon={<Car className="size-3.5" aria-hidden />} disabled={!customerId}>
                   <option value="">—</option>
                   {(vehicles.data?.rows ?? []).map((v) => <option key={v.id} value={v.id}>{v.plate} — {v.brand} {v.model}</option>)}
                 </Select>
-                <Input label="Matrícula (si no tiene ficha)" name="plate" className="uppercase" />
-                <Input label="Nombre de contacto" name="contactName" />
-                <Input label="Teléfono" name="contactPhone" />
-                <Input label="Fecha" name="date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
-                <Input label="Hora" name="time" type="time" required defaultValue="09:00" />
+                <Input label="Matrícula (si no tiene ficha)" name="plate" icon={<Hash className="size-3.5" aria-hidden />} className="uppercase" />
+                <Input label="Nombre de contacto" name="contactName" icon={<User className="size-3.5" aria-hidden />} />
+                <Input label="Teléfono" name="contactPhone" icon={<Phone className="size-3.5" aria-hidden />} />
+                <Input label="Fecha" name="date" type="date" icon={<CalendarDays className="size-3.5" aria-hidden />} required defaultValue={new Date().toISOString().slice(0, 10)} />
+                <Input label="Hora" name="time" type="time" icon={<Clock className="size-3.5" aria-hidden />} required defaultValue="09:00" />
                 <div className="md:col-span-2">
-                  <Input label="Motivo" name="reason" placeholder="Service de 10.000, ruido en tren delantero…" />
+                  <Input label="Motivo" name="reason" icon={<MessageSquare className="size-3.5" aria-hidden />} placeholder="Service de 10.000, ruido en tren delantero…" />
                 </div>
-                <Select label="Duración" name="durationMin" defaultValue="60">
+                <Select label="Duración" name="durationMin" icon={<Clock className="size-3.5" aria-hidden />} defaultValue="60" tip="Reserva el espacio en la agenda del día">
                   <option value="30">30 min</option><option value="60">1 hora</option>
                   <option value="120">2 horas</option><option value="240">Media jornada</option><option value="480">Jornada completa</option>
                 </Select>
-                <div className="md:col-span-4"><Textarea label="Notas" name="notes" rows={2} /></div>
+                <div className="md:col-span-4"><Textarea label="Notas" name="notes" icon={<StickyNote className="size-3.5" aria-hidden />} rows={2} /></div>
                 <div className="md:col-span-4"><Button type="submit">Agendar</Button></div>
               </form>
             </CardBody>

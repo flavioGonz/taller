@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { Plus, Search, X } from 'lucide-react';
+import { Plus, Search, X, User, Building2, IdCard, Phone, Mail, MapPin, Home, StickyNote, Wallet } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
 import { Button, Card, CardBody, CardHeader, CardTitle, Input, Select, Skeleton, EmptyState, Table, Th, Td, Textarea } from '@/components/ui';
 import { useApi } from '@/hooks/use-api';
@@ -122,29 +122,29 @@ function NuevoCliente({ onDone }: { onDone: () => void }) {
       <CardHeader><CardTitle>Nuevo cliente</CardTitle></CardHeader>
       <CardBody>
         <form onSubmit={onSubmit} className="grid gap-4 md:grid-cols-3">
-          <Select label="Tipo" name="type" value={isCompany ? 'empresa' : 'persona'} onChange={(e) => setIsCompany(e.target.value === 'empresa')}>
+          <Select label="Tipo" name="type" icon={isCompany ? <Building2 className="size-3.5" aria-hidden /> : <User className="size-3.5" aria-hidden />} value={isCompany ? 'empresa' : 'persona'} onChange={(e) => setIsCompany(e.target.value === 'empresa')} tip="Una empresa se identifica por razón social y RUT; una persona por nombre y cédula">
             <option value="persona">Persona</option>
             <option value="empresa">Empresa</option>
           </Select>
 
           {isCompany ? (
-            <div className="md:col-span-2"><Input label="Razón social" name="companyName" required /></div>
+            <div className="md:col-span-2"><Input label="Razón social" name="companyName" icon={<Building2 className="size-3.5" aria-hidden />} required /></div>
           ) : (
             <>
-              <Input label="Nombre" name="firstName" required />
-              <Input label="Apellido" name="lastName" required />
+              <Input label="Nombre" name="firstName" icon={<User className="size-3.5" aria-hidden />} required />
+              <Input label="Apellido" name="lastName" icon={<User className="size-3.5" aria-hidden />} required />
             </>
           )}
 
-          <Select label="Tipo de documento" name="docType" defaultValue="CI">
+          <Select label="Tipo de documento" name="docType" icon={<IdCard className="size-3.5" aria-hidden />} defaultValue="CI">
             <option value="CI">CI</option><option value="RUT">RUT</option><option value="DNI">DNI</option>
           </Select>
-          <Input label="Documento" name="docNumber" />
-          <Input label="Teléfono" name="phone" />
-          <Input label="Email" name="email" type="email" />
-          <Input label="Dirección" name="address" />
-          <Input label="Ciudad" name="city" defaultValue="Montevideo" />
-          <div className="md:col-span-3"><Textarea label="Notas" name="notes" rows={2} /></div>
+          <Input label="Documento" name="docNumber" icon={<IdCard className="size-3.5" aria-hidden />} tip="Es único por taller: evita fichas duplicadas del mismo cliente" />
+          <Input label="Teléfono" name="phone" icon={<Phone className="size-3.5" aria-hidden />} tip="Por acá se avisa el presupuesto y la entrega" />
+          <Input label="Email" name="email" type="email" icon={<Mail className="size-3.5" aria-hidden />} />
+          <Input label="Dirección" name="address" icon={<Home className="size-3.5" aria-hidden />} />
+          <Input label="Ciudad" name="city" icon={<MapPin className="size-3.5" aria-hidden />} defaultValue="Montevideo" />
+          <div className="md:col-span-3"><Textarea label="Notas" name="notes" icon={<StickyNote className="size-3.5" aria-hidden />} rows={2} /></div>
 
           {error && <p role="alert" className="md:col-span-3 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-500">{error}</p>}
           <div className="md:col-span-3"><Button type="submit" loading={saving}>Guardar cliente</Button></div>

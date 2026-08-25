@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { CreditCard, Hash, DollarSign, FileText, Filter } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
 import { Button, Card, CardBody, Select, Skeleton, EmptyState, Table, Th, Td, Badge, Input } from '@/components/ui';
 import { useApi } from '@/hooks/use-api';
@@ -53,12 +54,12 @@ export default function FacturacionPage() {
                   <p className="text-xs text-[var(--text-muted)]">Registrar pago</p>
                   <p className="text-sm font-medium">{paying.number} · saldo {formatMoney(Number(paying.total) - Number(paying.paid), paying.currency)}</p>
                 </div>
-                <Select label="Método" name="method" defaultValue="EFECTIVO">
+                <Select label="Método" name="method" icon={<CreditCard className="size-3.5" aria-hidden />} defaultValue="EFECTIVO">
                   <option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option>
                   <option value="DEBITO">Débito</option><option value="CREDITO">Crédito</option><option value="CHEQUE">Cheque</option>
                 </Select>
-                <Input label="Importe" name="amount" type="number" step="0.01" min={0.01} defaultValue={Number(paying.total) - Number(paying.paid)} required />
-                <Input label="Referencia" name="reference" />
+                <Input label="Importe" name="amount" type="number" step="0.01" min={0.01} icon={<DollarSign className="size-3.5" aria-hidden />} defaultValue={Number(paying.total) - Number(paying.paid)} required />
+                <Input label="Referencia" name="reference" icon={<Hash className="size-3.5" aria-hidden />} tip="Nº de transferencia, cheque o voucher" />
                 <div className="flex gap-2 md:col-span-5">
                   <Button type="submit" size="sm">Guardar pago</Button>
                   <Button type="button" size="sm" variant="outline" onClick={() => setPaying(null)}>Cancelar</Button>
@@ -71,13 +72,13 @@ export default function FacturacionPage() {
         <Card>
           <CardBody className="flex flex-wrap gap-4">
             <div className="w-48">
-              <Select label="Tipo" name="type" value={type} onChange={(e) => { setType(e.target.value); setPage(1); }}>
+              <Select label="Tipo" name="type" icon={<FileText className="size-3.5" aria-hidden />} value={type} onChange={(e) => { setType(e.target.value); setPage(1); }}>
                 <option value="">Todos</option><option value="PRESUPUESTO">Presupuesto</option>
                 <option value="FACTURA">Factura</option><option value="REMITO">Remito</option><option value="RECIBO">Recibo</option>
               </Select>
             </div>
             <div className="w-48">
-              <Select label="Estado" name="status" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
+              <Select label="Estado" name="status" icon={<Filter className="size-3.5" aria-hidden />} value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
                 <option value="">Todos</option><option value="EMITIDO">Emitido</option><option value="PARCIAL">Parcial</option>
                 <option value="PAGADO">Pagado</option><option value="ANULADO">Anulado</option>
               </Select>
