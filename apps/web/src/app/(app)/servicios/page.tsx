@@ -1,73 +1,77 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { Plus, X, Hash, Wrench, Layers, Clock, DollarSign } from 'lucide-react';
+import { Plus, Pencil, Trash2, Wrench } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
-import { Button, Card, CardBody, CardHeader, CardTitle, Input, Skeleton, EmptyState, Table, Th, Td } from '@/components/ui';
+import { Button, Card, CardBody, Skeleton, EmptyState, Table, Th, Td } from '@/components/ui';
+import { Modal, ConfirmDialog } from '@/components/modal';
+import { RowMenu } from '@/components/row-menu';
+import { ServiceForm, type ServiceRecord } from '@/components/forms/service-form';
 import { useApi } from '@/hooks/use-api';
 import { api } from '@/lib/api';
 import { formatMoney, type Paginated } from '@taller/shared';
 import { useAuth } from '@/hooks/use-auth';
 
-interface Service { id: string; code: string | null; name: string; category: string | null; estimatedHours: string | null; price: string }
+interface Service extends ServiceRecord { id: string; name: string; price: string }
 
 export default function ServiciosPage() {
   const { can } = useAuth();
-  const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<Service | null>(null);
+  const [removing, setRemoving] = useState<Service | null>(null);
+  const [busy, setBusy] = useState(false);
   const { data, loading, refetch } = useApi<Paginated<Service>>('/services?page=1&limit=100');
 
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    await api.post('/services', {
-      code: fd.get('code') || undefined,
-      name: fd.get('name'),
-      category: fd.get('category') || undefined,
-      estimatedHours: fd.get('estimatedHours') ? Number(fd.get('estimatedHours')) : undefined,
-      price: Number(fd.get('price')),
-    });
-    setOpen(false);
-    refetch();
+  async function eliminar() {
+    if (!removing) return;
+    setBusy(true);
+    try {
+      await api.del(`/services/${removing.id}`);
+      setRemoving(null);
+      refetch();
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <>
-      <Topbar title="Catálogo de servicios" actions={can('service:write') ? <Button size="sm" onClick={() => setOpen((o) => !o)}>{open ? <X className="size-4" aria-hidden /> : <Plus className="size-4" aria-hidden />}{open ? 'Cerrar' : 'Nuevo servicio'}</Button> : undefined} />
+      <Topbar
+        title="Catálogo de servicios"
+        actions={can('service:write') ? (
+          <Button size="sm" onClick={() => setCreating(true)} tip="Los servicios del catálogo aceleran la carga de la OT y el presupuesto">
+            <Plus className="size-4" aria-hidden /> Nuevo servicio
+          </Button>
+        ) : undefined}
+      />
 
       <div className="space-y-4 p-6">
-        {open && (
-          <Card>
-            <CardHeader><CardTitle>Nuevo servicio</CardTitle></CardHeader>
-            <CardBody>
-              <form onSubmit={onSubmit} className="grid gap-4 md:grid-cols-5">
-                <Input label="Código" name="code" icon={<Hash className="size-3.5" aria-hidden />} placeholder="SRV-010" />
-                <div className="md:col-span-2"><Input label="Nombre" name="name" icon={<Wrench className="size-3.5" aria-hidden />} required /></div>
-                <Input label="Categoría" name="category" icon={<Layers className="size-3.5" aria-hidden />} />
-                <Input label="Horas estimadas" name="estimatedHours" type="number" step="0.25" min={0} icon={<Clock className="size-3.5" aria-hidden />} tip="Sirve para calcular la carga del taller y la mano de obra" />
-                <Input label="Precio" name="price" type="number" step="0.01" min={0} icon={<DollarSign className="size-3.5" aria-hidden />} required />
-                <div className="md:col-span-5"><Button type="submit">Guardar servicio</Button></div>
-              </form>
-            </CardBody>
-          </Card>
-        )}
-
         <Card>
           <CardBody className="p-0">
             {loading && !data ? (
               <div className="space-y-2 p-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
             ) : (data?.rows.length ?? 0) === 0 ? (
-              <EmptyState title="Sin servicios cargados" description="El catálogo acelera la carga de ítems en cada OT." />
+              <EmptyState icon={<Wrench className="size-8" aria-hidden />} title="Sin servicios cargados" description="El catálogo acelera la carga de ítems en cada OT." />
             ) : (
               <Table>
-                <thead><tr><Th>Código</Th><Th>Servicio</Th><Th>Categoría</Th><Th className="text-right">Horas</Th><Th className="text-right">Precio</Th></tr></thead>
+                <thead><tr><Th>Código</Th><Th>Servicio</Th><Th>Categoría</Th><Th className="text-right">Horas</Th><Th className="text-right">Precio</Th><Th className="w-10" /></tr></thead>
                 <tbody>
                   {data!.rows.map((s) => (
                     <tr key={s.id} className="transition-colors hover:bg-[var(--surface-2)]">
                       <Td className="font-mono text-xs">{s.code ?? '—'}</Td>
                       <Td>{s.name}</Td>
                       <Td className="text-xs text-[var(--text-muted)]">{s.category ?? '—'}</Td>
-                      <Td className="text-right tabular-nums">{s.estimatedHours ? Number(s.estimatedHours) : '—'}</Td>
-                      <Td className="text-right tabular-nums">{formatMoney(s.price)}</Td>
+                      <Td className="mono text-right">{s.estimatedHours ? Number(s.estimatedHours) : '—'}</Td>
+                      <Td className="mono text-right">{formatMoney(s.price)}</Td>
+                      <Td>
+                        <RowMenu
+                          label={`Acciones de ${s.name}`}
+                          actions={[
+                            { label: 'Editar', icon: <Pencil className="size-3.5" aria-hidden />, onClick: () => setEditing(s), hidden: !can('service:write') },
+                            { label: 'Dar de baja', icon: <Trash2 className="size-3.5" aria-hidden />, danger: true, onClick: () => setRemoving(s), hidden: !can('service:write') },
+                          ]}
+                        />
+                      </Td>
                     </tr>
                   ))}
                 </tbody>
@@ -76,6 +80,23 @@ export default function ServiciosPage() {
           </CardBody>
         </Card>
       </div>
+
+      <Modal open={creating} onClose={() => setCreating(false)} title="Nuevo servicio" width="lg">
+        <ServiceForm onSaved={() => { setCreating(false); refetch(); }} onCancel={() => setCreating(false)} />
+      </Modal>
+
+      <Modal open={!!editing} onClose={() => setEditing(null)} title={editing ? `Editar · ${editing.name}` : ''} width="lg">
+        {editing && <ServiceForm value={editing} onSaved={() => { setEditing(null); refetch(); }} onCancel={() => setEditing(null)} />}
+      </Modal>
+
+      <ConfirmDialog
+        open={!!removing}
+        onClose={() => setRemoving(null)}
+        onConfirm={() => void eliminar()}
+        loading={busy}
+        title="Dar de baja el servicio"
+        message={removing ? `${removing.name} deja de aparecer en el catálogo. Las OT que ya lo usaron no cambian.` : ''}
+      />
     </>
   );
 }

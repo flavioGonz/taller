@@ -70,7 +70,11 @@ export default async function inventoryRoutes(app: FastifyInstance) {
     const data = updatePartSchema.parse(req.body);
     const found = await prisma.part.findFirst({ where: { id, tenantId, deletedAt: null }, select: { id: true } });
     if (!found) throw notFound('Repuesto no encontrado');
-    return prisma.part.update({ where: { id }, data });
+    return prisma.part.update({
+      where: { id },
+      // Cadena vacía = el usuario quitó la foto
+      data: { ...data, ...(data.imageUrl !== undefined ? { imageUrl: data.imageUrl || null } : {}) },
+    });
   });
 
   app.delete('/parts/:id', { preHandler: [app.authorize('inventory:write')] }, async (req) => {

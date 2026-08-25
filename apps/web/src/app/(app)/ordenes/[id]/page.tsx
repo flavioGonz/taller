@@ -23,6 +23,7 @@ import {
   WORKORDER_KIND_DEFS, suggestedNext,
   type WorkOrderStatus, type WorkOrderKind,
 } from '@taller/shared';
+import { InsurancePanel } from '@/components/insurance-panel';
 import { useAuth } from '@/hooks/use-auth';
 
 interface Detail {
@@ -62,6 +63,7 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
   const [panel, setPanel] = useState<'none' | 'quality' | 'delivery' | 'work'>('none');
   const [qaChecklist, setQaChecklist] = useState<ChecklistValue>({});
   const [signature, setSignature] = useState<string | null>(null);
+  const [seguro, setSeguro] = useState(false);
 
   useWorkOrderRoom(id);
   const reload = () => { refetch(); flow.refetch(); };
@@ -362,6 +364,27 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
                 </dl>
               </CardBody>
             </Card>
+
+            {(data.kind === 'SINIESTRO' || seguro) && (
+              <InsurancePanel
+                workOrderId={id}
+                grandTotal={data.grandTotal}
+                currency={data.currency}
+                onChange={reload}
+              />
+            )}
+
+            {data.kind !== 'SINIESTRO' && !seguro && can('workorder:write') && (
+              <button
+                type="button"
+                onClick={() => setSeguro(true)}
+                data-tooltip-id="ts-tip"
+                data-tooltip-content="Convierte la OT en siniestro y abre el expediente de la compañía"
+                className="focus-ring flex w-full items-center justify-center gap-2 rounded-[var(--r)] border border-dashed border-[var(--border-strong)] bg-[var(--surface-2)] px-4 py-3 text-[13px] font-medium text-[var(--muted)] transition hover:border-[var(--brand)] hover:text-[var(--brand)]"
+              >
+                <ShieldCheck className="size-4" aria-hidden /> Este trabajo lo cubre un seguro
+              </button>
+            )}
 
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2"><Clock className="size-4" aria-hidden /> Trazabilidad</CardTitle></CardHeader>

@@ -1,0 +1,17 @@
+[
+  { "slug": "bse", "name": "Banco de Seguros del Estado", "legalName": "Banco de Seguros del Estado", "website": "https://www.bse.com.uy", "worksAuto": true, "notes": "Aseguradora estatal; el mayor volumen del mercado uruguayo." },
+  { "slug": "sura", "name": "SURA", "legalName": "Seguros SURA S.A.", "website": "https://www.segurossura.com.uy", "worksAuto": true },
+  { "slug": "mapfre", "name": "MAPFRE", "legalName": "MAPFRE Uruguay Seguros S.A.", "website": "https://www.mapfre.com.uy", "worksAuto": true },
+  { "slug": "porto-seguro", "name": "Porto Seguro", "legalName": "Porto Seguro Seguros del Uruguay S.A.", "website": "https://www.portoseguro.com.uy", "worksAuto": true },
+  { "slug": "san-cristobal", "name": "San Cristóbal", "legalName": "San Cristóbal Seguros S.A.", "website": "https://www.sancristobal.com.uy", "worksAuto": true },
+  { "slug": "hdi", "name": "HDI Seguros", "legalName": "HDI Seguros S.A.", "website": "https://www.hdi.com.uy", "worksAuto": true },
+  { "slug": "sancor", "name": "Sancor Seguros", "legalName": "Sancor Seguros S.A.", "website": "https://www.sancorseguros.com.uy", "worksAuto": true },
+  { "slug": "berkley", "name": "Berkley International", "legalName": "Berkley International Seguros S.A.", "website": "https://www.berkley.com.uy", "worksAuto": true },
+  { "slug": "surco", "name": "Surco Seguros", "legalName": "Cooperativa de Seguros Surco", "website": "https://www.surco.com.uy", "worksAuto": true, "notes": "Cooperativa de seguros." },
+  { "slug": "cutcsa-seguros", "name": "CUTCSA Seguros", "legalName": "CUTCSA Seguros S.A.", "worksAuto": true, "notes": "Fuerte en flotas de transporte." },
+  { "slug": "far-seguros", "name": "FAR Seguros", "legalName": "FAR Seguros S.A.", "worksAuto": true },
+  { "slug": "aig", "name": "AIG Seguros", "legalName": "AIG Seguros Uruguay S.A.", "website": "https://www.aig.com.uy", "worksAuto": true },
+  { "slug": "zurich", "name": "Zurich", "legalName": "Zurich Santander Seguros Uruguay S.A.", "website": "https://www.zurich.com.uy", "worksAuto": false, "notes": "Opera principalmente vida y patrimoniales; confirmar si toma automotor." },
+  { "slug": "metlife", "name": "MetLife", "legalName": "MetLife Seguros S.A.", "website": "https://www.metlife.com.uy", "worksAuto": false, "notes": "Ramo vida." },
+  { "slug": "alianca-da-bahia", "name": "Aliança da Bahia", "legalName": "Seguros Aliança da Bahia S.A.", "worksAuto": false, "notes": "Ramos patrimoniales y transporte." }
+]

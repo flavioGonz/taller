@@ -5,6 +5,10 @@ import {
   APPROVAL_CHANNELS, ITEM_DECISIONS, PARTS_ORDER_STATUSES, APPOINTMENT_STATUSES,
   FOLLOWUP_KINDS, QUALITY_RESULTS,
 } from './workshop.js';
+import {
+  AUTHORIZATION_CHANNELS, AUTHORIZATION_STATUSES, PARTS_POLICIES, PARTS_SUPPLIERS,
+  INVOICE_TARGETS, DEDUCTIBLE_COLLECTORS,
+} from './insurers.js';
 
 /* ------------------------------------------------------------- Citas */
 
@@ -85,6 +89,9 @@ export const createQuoteSchema = z.object({
   validUntil: z.coerce.date().optional(),
   notes: z.string().max(2000).optional(),
   terms: z.string().max(2000).optional(),
+  summary: z.string().max(3000).optional(),
+  estimatedDays: z.coerce.number().int().min(0).max(365).optional(),
+  warrantyDays: z.coerce.number().int().min(0).max(3650).optional(),
   /** Si se pasa, la nueva versión arranca copiando este presupuesto. */
   fromQuoteId: z.string().optional(),
   items: z.array(quoteItemSchema).default([]),
@@ -94,12 +101,20 @@ export const updateQuoteSchema = z.object({
   validUntil: z.coerce.date().nullable().optional(),
   notes: z.string().max(2000).optional(),
   terms: z.string().max(2000).optional(),
+  summary: z.string().max(3000).optional(),
+  estimatedDays: z.coerce.number().int().min(0).max(365).nullable().optional(),
+  warrantyDays: z.coerce.number().int().min(0).max(3650).nullable().optional(),
   items: z.array(quoteItemSchema).optional(),
 });
 
 export const sendQuoteSchema = z.object({
   channel: z.enum(APPROVAL_CHANNELS).default('WHATSAPP'),
   note: z.string().max(500).optional(),
+  /** Destinatario alternativo: si se omite se usa el del cliente. */
+  to: z.string().max(160).optional(),
+  message: z.string().max(2000).optional(),
+  /** false = sólo registrar que se envió, sin mandar nada. */
+  deliver: z.boolean().default(true),
 });
 
 /** Registro interno de lo que el cliente contestó, ítem por ítem. */
@@ -209,4 +224,82 @@ export const createModelSchema = z.object({
   bodyType: z.string().max(40).optional(),
   yearFrom: z.coerce.number().int().min(1900).max(2100).optional(),
   yearTo: z.coerce.number().int().min(1900).max(2100).optional(),
+});
+
+/* ---------------------------------------------------- Aseguradoras */
+
+export const insurerSchema = z.object({
+  name: z.string().min(1).max(120),
+  legalName: z.string().max(160).optional(),
+  taxId: z.string().max(30).optional(),
+  logoFile: z.string().max(120).optional(),
+  phone: z.string().max(40).optional(),
+  email: z.string().email().optional().or(z.literal('')),
+  website: z.string().max(200).optional(),
+  claimsPhone: z.string().max(40).optional(),
+  claimsEmail: z.string().email().optional().or(z.literal('')),
+  portalUrl: z.string().max(200).optional(),
+  worksAuto: z.boolean().default(true),
+  isActive: z.boolean().default(true),
+  notes: z.string().max(2000).optional(),
+});
+
+export const insurerTermsSchema = z.object({
+  requiresAuthorization: z.boolean().default(true),
+  authorizationChannel: z.enum(AUTHORIZATION_CHANNELS).default('EMAIL'),
+  authorizationSlaHours: z.coerce.number().int().min(0).max(2000).optional(),
+  requiresClaimNumber: z.boolean().default(true),
+  requiresAdjuster: z.boolean().default(true),
+  requiresPhotos: z.boolean().default(true),
+  minPhotos: z.coerce.number().int().min(0).max(50).default(6),
+  requiresDamageMap: z.boolean().default(true),
+  requiresQuoteFormat: z.string().max(200).optional(),
+  requiredDocuments: z.array(z.string().max(60)).default([]),
+  partsPolicy: z.enum(PARTS_POLICIES).default('MIXTO'),
+  partsSuppliedBy: z.enum(PARTS_SUPPLIERS).default('TALLER'),
+  partsMarkupPct: z.coerce.number().min(0).max(200).optional(),
+  requiresPartsQuotes: z.coerce.number().int().min(0).max(10).default(0),
+  laborRate: z.coerce.number().nonnegative().optional(),
+  laborDiscountPct: z.coerce.number().min(0).max(100).optional(),
+  partsDiscountPct: z.coerce.number().min(0).max(100).optional(),
+  currency: z.string().length(3).default('UYU'),
+  invoiceTo: z.enum(INVOICE_TARGETS).default('ASEGURADORA'),
+  deductibleBy: z.enum(DEDUCTIBLE_COLLECTORS).default('TALLER'),
+  paymentTermDays: z.coerce.number().int().min(0).max(365).default(30),
+  retentionPct: z.coerce.number().min(0).max(100).optional(),
+  maxRepairDays: z.coerce.number().int().min(0).max(365).optional(),
+  warrantyDays: z.coerce.number().int().min(0).max(3650).default(90),
+  agreementRef: z.string().max(60).optional(),
+  notes: z.string().max(4000).optional(),
+});
+
+export const insurerContactSchema = z.object({
+  name: z.string().min(1).max(120),
+  role: z.string().max(80).optional(),
+  phone: z.string().max(40).optional(),
+  email: z.string().email().optional().or(z.literal('')),
+  notes: z.string().max(500).optional(),
+});
+
+export const insuranceCaseSchema = z.object({
+  insurerId: z.string().min(1),
+  policyNumber: z.string().max(60).optional(),
+  claimNumber: z.string().max(60).optional(),
+  claimDate: z.coerce.date().optional(),
+  adjusterName: z.string().max(120).optional(),
+  adjusterPhone: z.string().max(40).optional(),
+  adjusterVisitAt: z.coerce.date().optional(),
+  deductible: z.coerce.number().nonnegative().optional(),
+  deductibleBy: z.enum(DEDUCTIBLE_COLLECTORS).optional(),
+  documents: z.record(z.unknown()).optional(),
+  notes: z.string().max(2000).optional(),
+});
+
+export const authorizationSchema = z.object({
+  status: z.enum(AUTHORIZATION_STATUSES),
+  authorizationRef: z.string().max(60).optional(),
+  authorizedAmount: z.coerce.number().nonnegative().optional(),
+  authorizedBy: z.string().max(120).optional(),
+  rejectionReason: z.string().max(500).optional(),
+  notes: z.string().max(1000).optional(),
 });

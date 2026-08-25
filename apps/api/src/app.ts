@@ -35,6 +35,7 @@ import quoteRoutes from './modules/quotes.routes.js';
 import partsOrderRoutes from './modules/parts-orders.routes.js';
 import flowRoutes from './modules/flow.routes.js';
 import followUpRoutes from './modules/followups.routes.js';
+import insurerRoutes, { insuranceCaseRoutes } from './modules/insurers.routes.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -150,6 +151,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(partsOrderRoutes, { prefix: '/api/parts-orders' });
   await app.register(flowRoutes, { prefix: '/api/work-orders' });
   await app.register(followUpRoutes, { prefix: '/api/follow-ups' });
+  await app.register(insurerRoutes, { prefix: '/api/insurers' });
+  await app.register(insuranceCaseRoutes, { prefix: '/api/work-orders' });
   await app.register(observabilityRoutes, { prefix: '/api/observability' });
 
   app.log.info(`🗄️  DB: ${dbUrlRedacted}`);

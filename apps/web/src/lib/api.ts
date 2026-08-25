@@ -6,7 +6,11 @@ export interface ApiError extends Error {
   details?: unknown;
 }
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? '/api';
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '/api';
+const BASE = API_BASE;
+
+/** URL absoluta de un endpoint, para links directos (PDF, descargas, etc.). */
+export const apiUrl = (path: string) => `${API_BASE}${path}`;
 
 async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
@@ -42,8 +46,24 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
   return (await res.json()) as T;
 }
 
+/** Igual que request pero devuelve el binario: usado para abrir/descargar PDFs. */
+async function requestBlob(path: string, retry = true): Promise<Blob> {
+  const res = await fetch(`${BASE}${path}`, { credentials: 'include' });
+  if (res.status === 401 && retry) {
+    const refreshed = await fetch(`${BASE}/auth/refresh`, { method: 'POST', credentials: 'include' });
+    if (refreshed.ok) return requestBlob(path, false);
+  }
+  if (!res.ok) {
+    const err = new Error(`Error ${res.status}`) as ApiError;
+    err.status = res.status;
+    throw err;
+  }
+  return res.blob();
+}
+
 export const api = {
   get: <T,>(path: string) => request<T>(path),
+  blob: (path: string) => requestBlob(path),
   post: <T,>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
   put: <T,>(path: string, body: unknown) => request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
   patch: <T,>(path: string, body: unknown) => request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),

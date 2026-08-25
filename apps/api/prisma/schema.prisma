@@ -429,9 +429,10 @@ model WorkOrder {
   quotes      Quote[]
   partsOrders PartsOrder[]
   qualityChecks QualityCheck[]
-  delivery    Delivery?
-  appointment Appointment?
-  followUps   FollowUp[]
+  delivery      Delivery?
+  appointment   Appointment?
+  followUps     FollowUp[]
+  insuranceCase InsuranceCase?
 
   @@unique([tenantId, number])
   @@index([tenantId, status])
@@ -598,6 +599,7 @@ model Part {
   minStock    Decimal  @default(0) @db.Decimal(12, 3)
   supplierId  String?
   location    String?
+  imageUrl    String?                       // foto del repuesto para el listado
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1016,6 +1018,11 @@ model Quote {
   currency    String      @default("UYU")
   notes       String?
   terms       String?
+  /// Resumen de la rotura tal como se le explica al cliente en el PDF
+  summary       String?
+  estimatedDays Int?      // tiempo de entrega estimado, en días hábiles
+  warrantyDays  Int?      @default(90)
+  pdfUrl        String?
 
   subtotal      Decimal @default(0) @db.Decimal(12, 2)
   discountTotal Decimal @default(0) @db.Decimal(12, 2)
@@ -1242,4 +1249,191 @@ model VehiclePhoto {
 
   @@index([vehicleId, createdAt])
   @@map("vehicle_photos")
+}
+
+// =============================================================================
+//  ASEGURADORAS — condiciones de trabajo y expediente de siniestro
+//  El taller trabaja para varias compañías y cada una tiene sus reglas para
+//  autorizar la reparación, qué repuestos acepta y cómo se cobra.
+// =============================================================================
+
+enum PartsPolicy {
+  ORIGINAL          // sólo repuesto original
+  ALTERNATIVO       // acepta alternativo / aftermarket
+  USADO             // acepta usado o reciclado
+  MIXTO             // según pieza, lo define el perito
+}
+
+enum PartsSuppliedBy {
+  TALLER            // el taller consigue y factura los repuestos
+  ASEGURADORA       // los manda la compañía
+  MIXTO
+}
+
+enum InvoiceTo {
+  ASEGURADORA       // se factura todo a la compañía
+  CLIENTE           // el cliente paga y le reintegran
+  MIXTO             // franquicia al cliente, resto a la compañía
+}
+
+enum DeductibleCollectedBy {
+  TALLER            // el taller cobra la franquicia al cliente
+  ASEGURADORA
+  NO_APLICA
+}
+
+enum AuthorizationChannel {
+  PORTAL
+  EMAIL
+  TELEFONO
+  APP
+  PERITO_PRESENCIAL
+  WHATSAPP
+}
+
+enum AuthorizationStatus {
+  SIN_ENVIAR
+  ENVIADO
+  EN_ANALISIS
+  AUTORIZADO
+  AUTORIZADO_PARCIAL
+  RECHAZADO
+  VENCIDO
+}
+
+model Insurer {
+  id         String  @id @default(cuid())
+  tenantId   String?                        // null = catálogo compartido
+  slug       String
+  name       String                         // nombre comercial
+  legalName  String?
+  taxId      String?                        // RUT
+  logoFile   String?
+  phone      String?
+  email      String?
+  website    String?
+  claimsPhone String?                       // línea de siniestros
+  claimsEmail String?
+  portalUrl  String?
+  worksAuto  Boolean @default(true)         // opera el ramo automotor
+  isActive   Boolean @default(true)
+  notes      String?
+  source     String  @default("catalog")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  terms    InsurerTerms?
+  contacts InsurerContact[]
+  cases    InsuranceCase[]
+
+  @@unique([tenantId, slug])
+  @@index([name])
+  @@map("insurers")
+}
+
+/// Cómo trabaja ESTE taller con ESTA aseguradora. Es lo que después valida el
+/// sistema antes de dejar mandar una reparación a autorizar.
+model InsurerTerms {
+  id        String @id @default(cuid())
+  tenantId  String
+  insurerId String @unique
+
+  // --- autorización de la reparación ---
+  requiresAuthorization Boolean              @default(true)
+  authorizationChannel  AuthorizationChannel @default(EMAIL)
+  authorizationSlaHours Int?                 // cuánto suele tardar la respuesta
+  requiresClaimNumber   Boolean              @default(true)   // nº de denuncia
+  requiresAdjuster      Boolean              @default(true)   // peritaje previo
+  requiresPhotos        Boolean              @default(true)
+  minPhotos             Int                  @default(6)
+  requiresDamageMap     Boolean              @default(true)   // daños marcados
+  requiresQuoteFormat   String?                               // formato/planilla exigida
+  requiredDocuments     Json                 @default("[]")   // ver DOCUMENT_REQUIREMENTS
+
+  // --- repuestos ---
+  partsPolicy     PartsPolicy     @default(MIXTO)
+  partsSuppliedBy PartsSuppliedBy @default(TALLER)
+  partsMarkupPct  Decimal?        @db.Decimal(5, 2)
+  requiresPartsQuotes Int         @default(0)   // cotizaciones a adjuntar
+
+  // --- dinero ---
+  laborRate       Decimal?  @db.Decimal(12, 2) // valor hora acordado
+  laborDiscountPct Decimal? @db.Decimal(5, 2)
+  partsDiscountPct Decimal? @db.Decimal(5, 2)
+  currency        String    @default("UYU")
+  invoiceTo       InvoiceTo @default(ASEGURADORA)
+  deductibleBy    DeductibleCollectedBy @default(TALLER)
+  paymentTermDays Int       @default(30)
+  retentionPct    Decimal?  @db.Decimal(5, 2)
+
+  // --- plazos y garantías ---
+  maxRepairDays Int?
+  warrantyDays  Int     @default(90)
+  agreementRef  String?                  // nº de convenio con el taller
+  notes         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  insurer Insurer @relation(fields: [insurerId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("insurer_terms")
+}
+
+model InsurerContact {
+  id        String  @id @default(cuid())
+  tenantId  String
+  insurerId String
+  name      String
+  role      String?          // perito, liquidador, mesa de autorizaciones…
+  phone     String?
+  email     String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  insurer Insurer @relation(fields: [insurerId], references: [id], onDelete: Cascade)
+
+  @@index([insurerId])
+  @@map("insurer_contacts")
+}
+
+/// Expediente del siniestro dentro de la OT.
+model InsuranceCase {
+  id          String @id @default(cuid())
+  tenantId    String
+  workOrderId String @unique
+  insurerId   String
+
+  policyNumber String?
+  claimNumber  String?                     // nº de denuncia / siniestro
+  claimDate    DateTime?
+  adjusterName String?
+  adjusterPhone String?
+  adjusterVisitAt DateTime?
+
+  deductible     Decimal? @db.Decimal(12, 2)   // franquicia
+  deductibleBy   DeductibleCollectedBy @default(TALLER)
+  insurerAmount  Decimal  @default(0) @db.Decimal(12, 2)
+  customerAmount Decimal  @default(0) @db.Decimal(12, 2)
+
+  status            AuthorizationStatus @default(SIN_ENVIAR)
+  authorizationRef  String?                    // nº de orden / autorización
+  authorizedAmount  Decimal? @db.Decimal(12, 2)
+  authorizedAt      DateTime?
+  authorizedBy      String?
+  sentAt            DateTime?
+  rejectionReason   String?
+  documents         Json @default("{}")        // checklist de lo entregado
+  notes             String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  insurer   Insurer   @relation(fields: [insurerId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, status])
+  @@index([insurerId])
+  @@map("insurance_cases")
 }

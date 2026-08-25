@@ -56,6 +56,13 @@ export default function NuevaOrdenPage() {
     if (prefilled.data?.customerId) setCustomerId(prefilled.data.customerId);
   }, [prefilled.data]);
 
+  // Se puede llegar desde la ficha del cliente con el cliente ya elegido
+  useEffect(() => {
+    const fromQuery = search.get('customerId');
+    if (fromQuery) setCustomerId(fromQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (!search.get('vehicleId')) setVehicleId('');
     // eslint-disable-next-line react-hooks/exhaustive-deps

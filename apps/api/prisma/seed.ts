@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { seedCatalog } from './seed-catalog.js';
 import { backfillVehicleCatalog } from './backfill-catalog.js';
+import { seedInsurers } from './seed-insurers.js';
 
 const prisma = new PrismaClient();
 const hash = (p: string) => bcrypt.hash(p, 11);
@@ -181,6 +182,9 @@ async function main() {
       },
     });
   }
+
+  const ins = await seedInsurers(prisma, tenant.id);
+  console.log(`   🛡️  Aseguradoras: ${ins.total} en el catálogo (+${ins.created} nuevas)`);
 
   const back = await backfillVehicleCatalog(prisma);
   if (back.linked > 0) console.log(`   🔗 Vehículos vinculados al catálogo: ${back.linked}/${back.checked}`);

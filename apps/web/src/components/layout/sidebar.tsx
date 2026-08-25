@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, ClipboardList, Users, Car, Package, Receipt, Wrench,
   Activity, Settings, ChevronLeft, Menu, LogOut, CalendarDays, FileText,
-  Truck, PhoneCall,
+  Truck, PhoneCall, ShieldCheck,
 } from 'lucide-react';
 import { cn, initials } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
@@ -35,6 +35,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
       { href: '/clientes', label: 'Clientes', icon: Users, permission: 'customer:read' },
       { href: '/vehiculos', label: 'Vehículos', icon: Car, permission: 'vehicle:read' },
       { href: '/postventa', label: 'Postventa', icon: PhoneCall, permission: 'followup:read' },
+      { href: '/aseguradoras', label: 'Aseguradoras', icon: ShieldCheck, permission: 'catalog:read' },
     ],
   },
   {

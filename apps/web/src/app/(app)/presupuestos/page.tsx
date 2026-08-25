@@ -9,6 +9,7 @@ import { useApi } from '@/hooks/use-api';
 import { useSocketEvent } from '@/hooks/use-socket';
 import { qs } from '@/lib/api';
 import { customerName, formatDate } from '@/lib/utils';
+import { PdfLink } from '@/components/pdf-link';
 import { QUOTE_STATUSES, QUOTE_STATUS_LABELS, formatMoney, SOCKET_EVENTS, type QuoteStatus } from '@taller/shared';
 
 interface Quote {
@@ -78,7 +79,7 @@ export default function PresupuestosPage() {
             ) : (
               <Table>
                 <thead>
-                  <tr><Th>Presupuesto</Th><Th>OT / vehículo</Th><Th>Cliente</Th><Th>Estado</Th><Th className="text-right">Total</Th><Th className="text-right">Aprobado</Th></tr>
+                  <tr><Th>Presupuesto</Th><Th>OT / vehículo</Th><Th>Cliente</Th><Th>Estado</Th><Th className="text-right">Total</Th><Th className="text-right">Aprobado</Th><Th className="w-px"><span className="sr-only">PDF</span></Th></tr>
                 </thead>
                 <tbody>
                   {rows.map((r) => (
@@ -98,6 +99,9 @@ export default function PresupuestosPage() {
                       <Td className="mono text-right">{formatMoney(r.total)}</Td>
                       <Td className="mono text-right font-semibold text-[var(--ok)]">
                         {Number(r.approvedTotal) > 0 ? formatMoney(r.approvedTotal) : '—'}
+                      </Td>
+                      <Td className="text-right">
+                        <PdfLink path={`/quotes/${r.id}/pdf`} label="" className="!h-7 !px-2" tip={`Ver el PDF de ${r.number}`} />
                       </Td>
                     </tr>
                   ))}

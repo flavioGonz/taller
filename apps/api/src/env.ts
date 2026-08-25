@@ -46,6 +46,17 @@ const envSchema = z.object({
   SLOW_QUERY_MS: z.coerce.number().int().default(200),
   SOCKET_LEAK_THRESHOLD: z.coerce.number().int().default(500),
   UPLOAD_DIR: z.string().default('/var/lib/taller-silver/uploads'),
+  APP_URL: z.string().default('https://taller.infratec.com.uy'),
+  // ---- correo saliente ----
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM: z.string().optional(),
+  // ---- WhatsApp (OpenWA / WAHA) ----
+  WAHA_URL: z.string().optional(),
+  WAHA_SESSION: z.string().default('default'),
+  WAHA_API_KEY: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

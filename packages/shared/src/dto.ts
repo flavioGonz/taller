@@ -169,6 +169,8 @@ export const workOrderQuerySchema = paginationSchema.extend({
   vehicleId: z.string().optional(),
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
+  promisedFrom: z.coerce.date().optional(),
+  promisedTo: z.coerce.date().optional(),
 });
 
 // ---------- inventario / servicios ----------
@@ -186,6 +188,7 @@ export const createPartSchema = z.object({
   minStock: z.coerce.number().nonnegative().default(0),
   supplierId: z.string().optional(),
   location: z.string().max(60).optional(),
+  imageUrl: z.string().max(500).optional(),
 });
 export const updatePartSchema = createPartSchema.partial();
 

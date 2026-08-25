@@ -51,7 +51,7 @@ export default function FichaVehiculoPage({ params }: { params: Promise<{ id: st
   const { id } = use(params);
   const { can } = useAuth();
   const { data, loading, refetch } = useApi<Vehicle>(`/vehicles/${id}`);
-  const [tab, setTab] = useState<'historial' | 'fotos' | 'danos' | 'ficha'>('historial');
+  const [tab, setTab] = useState<'fotos' | 'danos' | 'ficha'>('fotos');
   const [uploading, setUploading] = useState(false);
 
   async function subir(files: FileList | null) {
@@ -77,7 +77,6 @@ export default function FichaVehiculoPage({ params }: { params: Promise<{ id: st
   const cover = data.photoUrl ?? data.photos[0]?.url ?? null;
 
   const TABS = [
-    { id: 'historial', label: 'Historial', icon: History, count: data.workOrders.length },
     { id: 'fotos', label: 'Fotos', icon: Camera, count: data.photos.length },
     { id: 'danos', label: 'Daños', icon: AlertTriangle, count: data.damages.length },
     { id: 'ficha', label: 'Datos técnicos', icon: IdCard },
@@ -105,6 +104,9 @@ export default function FichaVehiculoPage({ params }: { params: Promise<{ id: st
         <Link href="/vehiculos" className="focus-ring inline-flex items-center gap-1.5 rounded text-[13px] text-[var(--muted)] hover:text-[var(--brand)]">
           <ArrowLeft className="size-3.5" aria-hidden /> Volver a vehículos
         </Link>
+
+        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="min-w-0 space-y-4">
 
         {/* ------------------------------------------------------------ hero */}
         <Card className="overflow-hidden">
@@ -186,46 +188,6 @@ export default function FichaVehiculoPage({ params }: { params: Promise<{ id: st
             );
           })}
         </div>
-
-        {tab === 'historial' && (
-          <Card>
-            <CardBody className="p-0">
-              {data.workOrders.length === 0 ? (
-                <EmptyState icon={<History className="size-8" aria-hidden />} title="Sin historial" description="Cuando el vehículo ingrese al taller, cada visita queda registrada acá." />
-              ) : (
-                <ol className="divide-y divide-[var(--border)]">
-                  {data.workOrders.map((w) => {
-                    const def = WORKORDER_KIND_DEFS[w.kind] ?? WORKORDER_KIND_DEFS.REPARACION;
-                    return (
-                      <motion.li key={w.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="p-4">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="size-2.5 rounded-full" style={{ background: def.color }} aria-hidden />
-                          <Link href={`/ordenes/${w.id}`} className="focus-ring rounded font-bold hover:underline">{w.number}</Link>
-                          <Badge tone="neutral">{def.short}</Badge>
-                          <StatusBadge status={w.status} />
-                          <span className="text-[12px] text-[var(--muted)]">{formatDate(w.receivedAt)}</span>
-                          {w.mileageIn && <span className="mono text-[12px] text-[var(--muted)]">{w.mileageIn.toLocaleString('es-UY')} km</span>}
-                          <span className="mono ml-auto font-semibold">{formatMoney(w.grandTotal)}</span>
-                        </div>
-                        {(w.diagnosis || w.workPerformed) && (
-                          <p className="mt-1.5 line-clamp-2 text-[13px] text-[var(--muted)]">{w.workPerformed || w.diagnosis}</p>
-                        )}
-                        {w.items.length > 0 && (
-                          <ul className="mt-1.5 flex flex-wrap gap-1">
-                            {w.items.slice(0, 6).map((i) => (
-                              <li key={i.id} className="ts-chip !cursor-default !py-0.5 !text-[11.5px]">{i.description}</li>
-                            ))}
-                            {w.items.length > 6 && <li className="ts-chip !cursor-default !py-0.5 !text-[11.5px]">+{w.items.length - 6}</li>}
-                          </ul>
-                        )}
-                      </motion.li>
-                    );
-                  })}
-                </ol>
-              )}
-            </CardBody>
-          </Card>
-        )}
 
         {tab === 'fotos' && (
           <Card>
@@ -354,6 +316,73 @@ export default function FichaVehiculoPage({ params }: { params: Promise<{ id: st
             </Card>
           </div>
         )}
+
+          </div>
+
+          {/* ------------------------------ historial: columna dedicada ---- */}
+          <aside className="xl:sticky xl:top-[84px]">
+            <Card className="overflow-hidden">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <History className="size-4" aria-hidden /> Historial del vehículo
+                </CardTitle>
+                <Badge tone="neutral">{data.workOrders.length}</Badge>
+              </CardHeader>
+              <CardBody className="max-h-[70vh] overflow-y-auto p-0">
+                {data.workOrders.length === 0 ? (
+                  <EmptyState
+                    icon={<History className="size-7" aria-hidden />}
+                    title="Sin visitas"
+                    description="Cada ingreso al taller se va a listar acá, con lo que se hizo y cuánto costó."
+                  />
+                ) : (
+                  <ol className="divide-y divide-[var(--border)]">
+                    {data.workOrders.map((w) => {
+                      const def = WORKORDER_KIND_DEFS[w.kind] ?? WORKORDER_KIND_DEFS.REPARACION;
+                      return (
+                        <motion.li key={w.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="p-3.5">
+                          <div className="flex items-center gap-2">
+                            <span className="size-2.5 shrink-0 rounded-full" style={{ background: def.color }} aria-hidden />
+                            <Link href={`/ordenes/${w.id}`} className="focus-ring rounded text-[13.5px] font-bold hover:underline">{w.number}</Link>
+                            <span className="mono ml-auto text-[13px] font-semibold">{formatMoney(w.grandTotal)}</span>
+                          </div>
+
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                            <Badge tone="neutral" className="!px-1.5 !py-0 !text-[10.5px]">{def.short}</Badge>
+                            <StatusBadge status={w.status} />
+                          </div>
+
+                          <p className="mt-1 text-[11.5px] text-[var(--muted)]">
+                            {formatDate(w.receivedAt)}
+                            {w.mileageIn ? ` · ${w.mileageIn.toLocaleString('es-UY')} km` : ''}
+                            {w.technician ? ` · ${w.technician.firstName}` : ''}
+                          </p>
+
+                          {(w.workPerformed || w.diagnosis) && (
+                            <p className="mt-1 line-clamp-2 text-[12px] text-[var(--muted)]">{w.workPerformed || w.diagnosis}</p>
+                          )}
+
+                          {w.items.length > 0 && (
+                            <ul className="mt-1.5 flex flex-wrap gap-1">
+                              {w.items.slice(0, 4).map((i) => (
+                                <li key={i.id} className="ts-chip !cursor-default !px-2 !py-0.5 !text-[11px]">{i.description}</li>
+                              ))}
+                              {w.items.length > 4 && <li className="ts-chip !cursor-default !px-2 !py-0.5 !text-[11px]">+{w.items.length - 4}</li>}
+                            </ul>
+                          )}
+
+                          {w.warrantyUntil && new Date(w.warrantyUntil) > new Date() && (
+                            <p className="mt-1 text-[11px] text-[var(--ok)]">Garantía hasta {formatDate(w.warrantyUntil)}</p>
+                          )}
+                        </motion.li>
+                      );
+                    })}
+                  </ol>
+                )}
+              </CardBody>
+            </Card>
+          </aside>
+        </div>
       </div>
     </>
   );

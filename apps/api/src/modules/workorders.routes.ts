@@ -72,6 +72,9 @@ export default async function workOrderRoutes(app: FastifyInstance) {
       ...(q.customerId ? { customerId: q.customerId } : {}),
       ...(q.vehicleId ? { vehicleId: q.vehicleId } : {}),
       ...(q.from || q.to ? { receivedAt: { ...(q.from ? { gte: q.from } : {}), ...(q.to ? { lte: q.to } : {}) } } : {}),
+      ...(q.promisedFrom || q.promisedTo
+        ? { promisedAt: { ...(q.promisedFrom ? { gte: q.promisedFrom } : {}), ...(q.promisedTo ? { lte: q.promisedTo } : {}) } }
+        : {}),
       // Alcance reducido: el técnico ve lo suyo, el cliente sólo sus vehículos
       ...(user.role === 'TECNICO' ? { technicianId: user.id } : {}),
       ...(user.role === 'CLIENTE' ? { customer: { portalUser: { id: user.id } } } : {}),
@@ -94,7 +97,7 @@ export default async function workOrderRoutes(app: FastifyInstance) {
         orderBy: safeOrderBy(q.sort, q.order, SORTABLE, 'receivedAt'),
         select: {
           id: true, number: true, kind: true, status: true, priority: true, receivedAt: true, promisedAt: true,
-          grandTotal: true, currency: true,
+          grandTotal: true, currency: true, bayId: true, technicianId: true,
           customer: { select: { id: true, firstName: true, lastName: true, companyName: true, isCompany: true } },
           vehicle: { select: { id: true, plate: true, brand: true, model: true } },
           technician: { select: { id: true, firstName: true, lastName: true } },

@@ -34,6 +34,32 @@ export default async function followUpRoutes(app: FastifyInstance) {
     return toPaginated(rows, total, q.page, q.limit);
   });
 
+  // Resumen para el encabezado de postventa
+  app.get('/stats', { preHandler: [app.authorize('followup:read')] }, async (req) => {
+    const tenantId = req.scope();
+    const now = new Date();
+    const desde = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [pendientes, vencidos, hechosMes, rating] = await Promise.all([
+      prisma.followUp.count({ where: { tenantId, status: 'PENDIENTE' } }),
+      prisma.followUp.count({ where: { tenantId, status: 'PENDIENTE', dueAt: { lte: now } } }),
+      prisma.followUp.count({ where: { tenantId, status: 'HECHO', doneAt: { gte: desde } } }),
+      prisma.followUp.aggregate({
+        where: { tenantId, rating: { not: null } },
+        _avg: { rating: true },
+        _count: { rating: true },
+      }),
+    ]);
+
+    return {
+      pendientes,
+      vencidos,
+      hechosMes,
+      satisfaccion: rating._avg?.rating ? Number(rating._avg.rating.toFixed(2)) : null,
+      encuestas: rating._count?.rating ?? 0,
+    };
+  });
+
   app.post('/', { preHandler: [app.authorize('followup:write')] }, async (req, reply) => {
     const tenantId = req.scope();
     const data = createFollowUpSchema.parse(req.body);

@@ -8,6 +8,9 @@ import { prisma } from '../lib/prisma.js';
 import { nextNumber } from '../lib/counters.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { emitTenant, emitWorkOrder } from '../plugins/socket.js';
+import { buildQuotePdf } from '../lib/quote-pdf.js';
+import { sendMail, sendWhatsAppFile, mailConfigured, whatsappConfigured } from '../lib/notify.js';
+import { env } from '../env.js';
 
 const include = {
   items: { orderBy: { position: 'asc' as const } },
@@ -112,6 +115,8 @@ export default async function quoteRoutes(app: FastifyInstance) {
         data: {
           tenantId, workOrderId: wo.id, number, version,
           validUntil: data.validUntil, notes: data.notes, terms: data.terms,
+          summary: data.summary, estimatedDays: data.estimatedDays,
+          warrantyDays: data.warrantyDays ?? 90,
           currency: wo.currency, createdById: req.currentUser!.id,
           subtotal: totals.subtotal, discountTotal: totals.discountTotal,
           taxTotal: totals.taxTotal, total: totals.grandTotal, approvedTotal: 0,
@@ -149,7 +154,10 @@ export default async function quoteRoutes(app: FastifyInstance) {
     const updated = await prisma.$transaction(async (tx) => {
       await tx.quote.update({
         where: { id },
-        data: { validUntil: data.validUntil, notes: data.notes, terms: data.terms },
+        data: {
+          validUntil: data.validUntil, notes: data.notes, terms: data.terms,
+          summary: data.summary, estimatedDays: data.estimatedDays, warrantyDays: data.warrantyDays,
+        },
       });
 
       if (data.items) {
@@ -178,15 +186,88 @@ export default async function quoteRoutes(app: FastifyInstance) {
     return updated;
   });
 
-  // ---------------------------------------------- marcar como enviado
+  // ------------------------------------------------------------- PDF
+  app.get('/:id/pdf', { preHandler: [app.authorize('quote:read')] }, async (req, reply) => {
+    const { id } = idParamSchema.parse(req.params);
+    const { buffer, filename } = await buildQuotePdf(id, req.scope());
+    const { download } = req.query as { download?: string };
+    reply
+      .header('Content-Type', 'application/pdf')
+      .header('Content-Disposition', `${download === 'true' ? 'attachment' : 'inline'}; filename="${filename}"`)
+      .header('Content-Length', buffer.length);
+    return reply.send(buffer);
+  });
+
+  // Qué canales están realmente disponibles en esta instalación
+  app.get('/delivery/channels', { preHandler: [app.authorize('quote:read')] }, async () => ({
+    email: mailConfigured(),
+    whatsapp: whatsappConfigured(),
+  }));
+
+  // ------------------------------- enviar al cliente (y marcar como enviado)
   app.post('/:id/send', { preHandler: [app.authorize('quote:write')] }, async (req) => {
     const { id } = idParamSchema.parse(req.params);
     const tenantId = req.scope();
-    const { channel, note } = sendQuoteSchema.parse(req.body ?? {});
+    const { channel, note, to, message, deliver } = sendQuoteSchema.parse(req.body ?? {});
 
-    const quote = await prisma.quote.findFirst({ where: { id, tenantId }, include: { items: true, workOrder: { select: { id: true, status: true } } } });
+    const quote = await prisma.quote.findFirst({
+      where: { id, tenantId },
+      include: {
+        items: true,
+        workOrder: {
+          select: {
+            id: true, status: true, number: true,
+            customer: { select: { firstName: true, lastName: true, companyName: true, isCompany: true, email: true, phone: true } },
+            vehicle: { select: { plate: true, brand: true, model: true } },
+          },
+        },
+      },
+    });
     if (!quote) throw notFound('Presupuesto no encontrado');
     if (quote.items.length === 0) throw badRequest('El presupuesto no tiene ítems');
+
+    // ---------------- entrega real por correo o WhatsApp ----------------
+    let delivery: { channel: string; target: string; ok: boolean } | null = null;
+
+    if (deliver && (channel === 'EMAIL' || channel === 'WHATSAPP')) {
+      const c = quote.workOrder.customer;
+      const who = c.isCompany ? (c.companyName ?? '') : [c.firstName, c.lastName].filter(Boolean).join(' ');
+      const veh = `${quote.workOrder.vehicle.plate} · ${quote.workOrder.vehicle.brand} ${quote.workOrder.vehicle.model}`;
+      const { buffer, filename } = await buildQuotePdf(id, tenantId);
+      const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { name: true, phone: true } });
+
+      if (channel === 'EMAIL') {
+        const target = to || c.email;
+        if (!target) throw badRequest('El cliente no tiene correo cargado');
+        const html = `
+          <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#0f172a;line-height:1.55">
+            <p>Hola ${who || ''},</p>
+            <p>Te adjuntamos el presupuesto <strong>${quote.number}</strong> para tu vehículo <strong>${veh}</strong>.</p>
+            ${message ? `<p>${message}</p>` : ''}
+            <p>Cualquier duda respondé este correo o escribinos${tenant.phone ? ` al ${tenant.phone}` : ''}.</p>
+            <p style="color:#64748b;font-size:13px">${tenant.name}</p>
+          </div>`;
+        await sendMail({
+          to: target,
+          subject: `Presupuesto ${quote.number} · ${veh}`,
+          html,
+          text: `Presupuesto ${quote.number} para ${veh}. ${message ?? ''}`,
+          attachments: [{ filename, content: buffer, contentType: 'application/pdf' }],
+        });
+        delivery = { channel: 'EMAIL', target, ok: true };
+      }
+
+      if (channel === 'WHATSAPP') {
+        const target = to || c.phone;
+        if (!target) throw badRequest('El cliente no tiene teléfono cargado');
+        const caption =
+          message ??
+          `Hola ${who || ''}, te enviamos el presupuesto ${quote.number} para ${veh}. ` +
+            `Cualquier consulta respondenos por acá. ${tenant.name}`;
+        await sendWhatsAppFile(target, { filename, content: buffer, mimetype: 'application/pdf' }, caption);
+        delivery = { channel: 'WHATSAPP', target, ok: true };
+      }
+    }
 
     const updated = await prisma.$transaction(async (tx) => {
       const q = await tx.quote.update({
@@ -209,7 +290,7 @@ export default async function quoteRoutes(app: FastifyInstance) {
 
     emitTenant(tenantId, SOCKET_EVENTS.QUOTE_SENT, { id, workOrderId: quote.workOrderId });
     emitWorkOrder(quote.workOrderId, SOCKET_EVENTS.QUOTE_SENT, { id });
-    return updated;
+    return { ...updated, delivery, appUrl: env.APP_URL };
   });
 
   // ============================================================

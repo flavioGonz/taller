@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { Plus, Search, X, ArrowDownToLine, ArrowUpFromLine, Hash, Tag, Factory, Layers, Coins, DollarSign, TriangleAlert, StickyNote } from 'lucide-react';
+import { Plus, Search, X, ArrowDownToLine, ArrowUpFromLine, Hash, Tag, Factory, Layers, Coins, DollarSign, TriangleAlert, StickyNote, Package } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
 import { Button, Card, CardBody, CardHeader, CardTitle, Input, Select, Skeleton, EmptyState, Table, Th, Td, Badge } from '@/components/ui';
 import { useApi } from '@/hooks/use-api';
@@ -9,10 +9,11 @@ import { useSocketEvent } from '@/hooks/use-socket';
 import { api, qs } from '@/lib/api';
 import { SOCKET_EVENTS, formatMoney, type Paginated } from '@taller/shared';
 import { useAuth } from '@/hooks/use-auth';
+import { ImagePicker } from '@/components/image-picker';
 
 interface Part {
   id: string; sku: string; name: string; brand: string | null; category: string | null;
-  cost: string; price: string; minStock: string; onHand: number; isLow: boolean;
+  cost: string; price: string; minStock: string; onHand: number; isLow: boolean; imageUrl: string | null;
   supplier?: { id: string; name: string } | null;
 }
 
@@ -23,6 +24,7 @@ export default function InventarioPage() {
   const [lowOnly, setLowOnly] = useState(false);
   const [open, setOpen] = useState(false);
   const [move, setMove] = useState<{ part: Part; type: 'ENTRADA' | 'SALIDA' } | null>(null);
+  const [nuevaFoto, setNuevaFoto] = useState<string | null>(null);
   const { data, loading, refetch } = useApi<Paginated<Part>>(`/inventory/parts${qs({ page, limit: 20, q, lowStock: lowOnly ? 'true' : '' })}`);
 
   useSocketEvent(SOCKET_EVENTS.STOCK_MOVED, () => refetch());
@@ -34,8 +36,10 @@ export default function InventarioPage() {
       sku: fd.get('sku'), name: fd.get('name'), brand: fd.get('brand') || undefined,
       category: fd.get('category') || undefined, cost: Number(fd.get('cost') ?? 0),
       price: Number(fd.get('price') ?? 0), minStock: Number(fd.get('minStock') ?? 0),
+      imageUrl: nuevaFoto ?? undefined,
     });
     setOpen(false);
+    setNuevaFoto(null);
     refetch();
   }
 
@@ -63,6 +67,18 @@ export default function InventarioPage() {
             <CardHeader><CardTitle>Nuevo repuesto</CardTitle></CardHeader>
             <CardBody>
               <form onSubmit={crearRepuesto} className="grid gap-4 md:grid-cols-4">
+                <div className="flex items-end gap-3 md:col-span-4">
+                  <ImagePicker
+                    value={nuevaFoto}
+                    onChange={setNuevaFoto}
+                    size={72}
+                    label="Foto del repuesto"
+                    fallback={<Package className="size-1/2" aria-hidden />}
+                  />
+                  <p className="pb-1 text-[12px] text-[var(--muted)]">
+                    Subí una foto del repuesto: aparece en el listado y ayuda a identificarlo en el mostrador.
+                  </p>
+                </div>
                 <Input label="SKU" name="sku" icon={<Hash className="size-3.5" aria-hidden />} required tip="Código interno único del repuesto" />
                 <div className="md:col-span-2"><Input label="Nombre" name="name" icon={<Tag className="size-3.5" aria-hidden />} required /></div>
                 <Input label="Marca" name="brand" icon={<Factory className="size-3.5" aria-hidden />} />
@@ -113,10 +129,20 @@ export default function InventarioPage() {
               <EmptyState title="Inventario vacío" description="Cargá repuestos para poder consumirlos desde las órdenes de trabajo." />
             ) : (
               <Table>
-                <thead><tr><Th>SKU</Th><Th>Repuesto</Th><Th className="text-right">Stock</Th><Th className="text-right">Costo</Th><Th className="text-right">Precio</Th><Th className="w-28" /></tr></thead>
+                <thead><tr><Th className="w-14"><span className="sr-only">Foto</span></Th><Th>SKU</Th><Th>Repuesto</Th><Th className="text-right">Stock</Th><Th className="text-right">Costo</Th><Th className="text-right">Precio</Th><Th className="w-28" /></tr></thead>
                 <tbody>
                   {data!.rows.map((p) => (
                     <tr key={p.id} className="transition-colors hover:bg-[var(--surface-2)]">
+                      <Td>
+                        <ImagePicker
+                          value={p.imageUrl}
+                          size={40}
+                          label="Foto del repuesto"
+                          disabled={!can('inventory:write')}
+                          fallback={<Package className="size-1/2" aria-hidden />}
+                          onChange={(url) => void api.patch(`/inventory/parts/${p.id}`, { imageUrl: url ?? '' }).then(() => refetch())}
+                        />
+                      </Td>
                       <Td className="font-mono text-xs">{p.sku}</Td>
                       <Td>{p.name}<div className="text-[11px] text-[var(--text-muted)]">{[p.brand, p.category].filter(Boolean).join(' · ')}</div></Td>
                       <Td className="text-right">

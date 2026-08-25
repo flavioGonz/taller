@@ -2,11 +2,16 @@
 
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Send, Check, X, Copy, Ban, AlertTriangle } from 'lucide-react';
+import {
+  ArrowLeft, Send, Check, X, Copy, Ban, AlertTriangle, Clock, ShieldCheck,
+  Wrench, CalendarClock, Save, Mail, MessageCircle,
+} from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
 import { Button, Card, CardBody, CardHeader, CardTitle, Input, Select, Textarea, Skeleton, Badge, Table, Th, Td } from '@/components/ui';
 import { useApi } from '@/hooks/use-api';
 import { api } from '@/lib/api';
+import { QuoteSendDialog } from '@/components/quote-send-dialog';
+import { PdfLink } from '@/components/pdf-link';
 import { customerName, formatDate } from '@/lib/utils';
 import {
   QUOTE_STATUS_LABELS, APPROVAL_CHANNELS, CHANNEL_LABELS, formatMoney, computeTotals,
@@ -23,6 +28,7 @@ interface Item {
 interface Quote {
   id: string; number: string; version: number; status: QuoteStatus; currency: string;
   notes: string | null; terms: string | null; validUntil: string | null;
+  summary: string | null; estimatedDays: number | null; warrantyDays: number | null;
   subtotal: string; taxTotal: string; total: string; approvedTotal: string;
   sentAt: string | null; sentChannel: string | null;
   decidedAt: string | null; decisionChannel: string | null; decidedByName: string | null;
@@ -30,7 +36,7 @@ interface Quote {
   items: Item[];
   workOrder: {
     id: string; number: string; status: string;
-    customer: { firstName?: string | null; lastName?: string | null; companyName?: string | null; isCompany: boolean; phone?: string | null };
+    customer: { firstName?: string | null; lastName?: string | null; companyName?: string | null; isCompany: boolean; phone?: string | null; email?: string | null };
     vehicle: { plate: string; brand: string; model: string; year: number | null };
   };
 }
@@ -51,11 +57,21 @@ export default function PresupuestoPage({ params }: { params: Promise<{ id: stri
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sendOpen, setSendOpen] = useState(false);
+
+  // Condiciones comerciales que salen impresas en el PDF
+  const [summary, setSummary] = useState('');
+  const [days, setDays] = useState('');
+  const [warranty, setWarranty] = useState('');
+  const [savedTerms, setSavedTerms] = useState(false);
 
   useEffect(() => {
     if (data) {
       setDecisions(Object.fromEntries(data.items.map((i) => [i.id, i.decision])));
       if (!decidedBy) setDecidedBy(customerName(data.workOrder.customer));
+      setSummary(data.summary ?? '');
+      setDays(data.estimatedDays != null ? String(data.estimatedDays) : '');
+      setWarranty(data.warrantyDays != null ? String(data.warrantyDays) : '');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
@@ -97,9 +113,15 @@ export default function PresupuestoPage({ params }: { params: Promise<{ id: stri
         actions={
           <>
             <Badge tone={TONE[data.status]}>{QUOTE_STATUS_LABELS[data.status]}</Badge>
-            {can('quote:write') && data.status === 'BORRADOR' && (
-              <Button size="sm" loading={busy} onClick={() => void act(() => api.post(`/quotes/${id}/send`, { channel }))}>
-                <Send className="size-4" aria-hidden /> Marcar como enviado
+            <PdfLink path={`/quotes/${id}/pdf`} tip="Abre el presupuesto en PDF, listo para imprimir o guardar" />
+            {can('quote:write') && (data.status === 'BORRADOR' || data.status === 'ENVIADO') && (
+              <Button
+                size="sm"
+                onClick={() => setSendOpen(true)}
+                data-tooltip-id="ts-tip"
+                data-tooltip-content="Manda el PDF por correo o WhatsApp, o registra que se lo entregaste en mano"
+              >
+                <Send className="size-4" aria-hidden /> {data.status === 'ENVIADO' ? 'Reenviar' : 'Enviar al cliente'}
               </Button>
             )}
             {can('quote:write') && (data.status === 'RECHAZADO' || data.status === 'APROBADO_PARCIAL') && (
@@ -193,6 +215,72 @@ export default function PresupuestoPage({ params }: { params: Promise<{ id: stri
               </CardBody>
             </Card>
 
+            <Card>
+              <CardHeader>
+                <CardTitle>Lo que ve el cliente en el PDF</CardTitle>
+                {savedTerms && <span className="text-[12px] text-[var(--ok)]">Guardado</span>}
+              </CardHeader>
+              <CardBody className="space-y-3">
+                <Textarea
+                  label="Qué tiene el vehículo"
+                  icon={<Wrench className="size-3.5" aria-hidden />}
+                  rows={3}
+                  value={summary}
+                  disabled={!editable || !can('quote:write')}
+                  onChange={(e) => { setSummary(e.target.value); setSavedTerms(false); }}
+                  placeholder="Breve descripción de la rotura en criollo, como se la explicás al cliente. Ej: golpe en el guardabarros delantero derecho con el paragolpes desprendido y el faro rajado."
+                  tip="Sale en la primera hoja del PDF, arriba del detalle de costos"
+                />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Input
+                    label="Tiempo de entrega (días hábiles)"
+                    icon={<Clock className="size-3.5" aria-hidden />}
+                    type="number"
+                    min={0}
+                    value={days}
+                    disabled={!editable || !can('quote:write')}
+                    onChange={(e) => { setDays(e.target.value); setSavedTerms(false); }}
+                    placeholder="Ej: 5"
+                    tip="Se cuenta desde que el cliente aprueba y están los repuestos"
+                  />
+                  <Input
+                    label="Garantía (días)"
+                    icon={<ShieldCheck className="size-3.5" aria-hidden />}
+                    type="number"
+                    min={0}
+                    value={warranty}
+                    disabled={!editable || !can('quote:write')}
+                    onChange={(e) => { setWarranty(e.target.value); setSavedTerms(false); }}
+                    placeholder="Ej: 90"
+                    tip="Garantía sobre el trabajo realizado, en días corridos"
+                  />
+                </div>
+                {editable && can('quote:write') && (
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="flex items-center gap-1.5 text-[11.5px] text-[var(--muted)]">
+                      <CalendarClock className="size-3.5 shrink-0" aria-hidden />
+                      {data.validUntil ? `Válido hasta ${formatDate(data.validUntil)}` : 'Sin fecha de vencimiento cargada'}
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      loading={busy}
+                      onClick={() => void act(async () => {
+                        await api.patch(`/quotes/${id}`, {
+                          summary: summary.trim() || undefined,
+                          estimatedDays: days === '' ? null : Number(days),
+                          warrantyDays: warranty === '' ? null : Number(warranty),
+                        });
+                        setSavedTerms(true);
+                      })}
+                    >
+                      <Save className="size-3.5" aria-hidden /> Guardar
+                    </Button>
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+
             {data.notes && (
               <Card>
                 <CardHeader><CardTitle>Notas</CardTitle></CardHeader>
@@ -206,11 +294,26 @@ export default function PresupuestoPage({ params }: { params: Promise<{ id: stri
               <CardHeader><CardTitle>Cliente y vehículo</CardTitle></CardHeader>
               <CardBody className="space-y-1 text-[13.5px]">
                 <p className="font-semibold">{customerName(data.workOrder.customer)}</p>
-                <p className="text-[var(--muted)]">{data.workOrder.customer.phone ?? '—'}</p>
+                <p className="flex items-center gap-1.5 text-[var(--muted)]">
+                  <MessageCircle className="size-3.5 shrink-0" aria-hidden /> {data.workOrder.customer.phone ?? 'sin teléfono'}
+                </p>
+                <p className="flex items-center gap-1.5 text-[var(--muted)]">
+                  <Mail className="size-3.5 shrink-0" aria-hidden /> {data.workOrder.customer.email ?? 'sin correo'}
+                </p>
                 <p className="mono pt-2">{data.workOrder.vehicle.plate}</p>
                 <p className="text-[var(--muted)]">{data.workOrder.vehicle.brand} {data.workOrder.vehicle.model} {data.workOrder.vehicle.year ?? ''}</p>
               </CardBody>
             </Card>
+
+            {data.sentAt && (
+              <Card>
+                <CardHeader><CardTitle>Envío</CardTitle></CardHeader>
+                <CardBody className="space-y-1 text-[13px]">
+                  <p><span className="text-[var(--muted)]">Enviado:</span> {formatDate(data.sentAt, true)}</p>
+                  <p><span className="text-[var(--muted)]">Canal:</span> {data.sentChannel ? CHANNEL_LABELS[data.sentChannel as keyof typeof CHANNEL_LABELS] : '—'}</p>
+                </CardBody>
+              </Card>
+            )}
 
             {decidable && can('quote:decide') && (
               <Card>
@@ -274,7 +377,16 @@ export default function PresupuestoPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
       </div>
+
+      <QuoteSendDialog
+        open={sendOpen}
+        onClose={() => setSendOpen(false)}
+        quoteId={id}
+        quoteNumber={`${data.number} v${data.version}`}
+        customerEmail={data.workOrder.customer.email}
+        customerPhone={data.workOrder.customer.phone}
+        onSent={refetch}
+      />
     </>
   );
 }
-
