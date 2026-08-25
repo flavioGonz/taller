@@ -11,10 +11,7 @@ import esLocale from '@fullcalendar/core/locales/es';
 import type { EventClickArg, EventInput, DatesSetArg, DateSelectArg } from '@fullcalendar/core';
 import type { EventDropArg } from '@fullcalendar/core';
 import type { EventResizeDoneArg } from '@fullcalendar/interaction';
-import {
-  CalendarDays, Plus, X, Car, Phone, User, Hash, Clock, MessageSquare, StickyNote,
-  Wrench, CheckCircle2, UserX, Trash2, ExternalLink,
-} from 'lucide-react';
+import { CalendarDays, Plus, X, Car, Phone, User, Hash, Clock, MessageSquare, StickyNote, Wrench, CheckCircle2, UserX, Trash2, ExternalLink, CalendarPlus } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
 import { Button, Card, CardBody, CardHeader, CardTitle, Input, Select, Textarea, Badge } from '@/components/ui';
 import { Modal } from '@/components/modal';
@@ -295,7 +292,15 @@ export default function AgendaPage() {
       </div>
 
       {/* ------------------------------------------------------ nueva cita */}
-      <Modal open={!!creating} onClose={() => setCreating(null)} title="Nueva cita" width="lg">
+      <Modal
+        open={!!creating}
+        onClose={() => setCreating(null)}
+        title="Nueva cita"
+        description="Reservá el horario; al llegar el vehículo se convierte en orden de trabajo."
+        icon={<CalendarPlus className="size-[19px]" aria-hidden />}
+        width="lg"
+        persistent
+      >
         {creating && (
           <form onSubmit={crear} className="grid gap-4 md:grid-cols-4">
             <div className="md:col-span-2">
@@ -332,7 +337,13 @@ export default function AgendaPage() {
       </Modal>
 
       {/* --------------------------------------------------- detalle de cita */}
-      <Modal open={!!selected} onClose={() => setSelected(null)} title={selected ? `Cita · ${formatDate(selected.scheduledAt, true)}` : ''}>
+      <Modal
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        title={selected ? `Cita · ${formatDate(selected.scheduledAt, true)}` : ''}
+        description="Confirmá, marcá que no vino o convertila en orden de trabajo."
+        icon={<CalendarDays className="size-[19px]" aria-hidden />}
+      >
         {selected && (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">

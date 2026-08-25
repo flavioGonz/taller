@@ -132,7 +132,7 @@ export default function PresupuestosPage() {
 
   return (
     <>
-      <Topbar title="Presupuestos" />
+      <Topbar title="Presupuestos" description="Lo que se le ofreció a cada cliente y qué contestó" />
 
       <div className="space-y-4 p-6">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

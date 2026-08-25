@@ -105,6 +105,7 @@ export default function ServiciosPage() {
     <>
       <Topbar
         title="Catálogo de servicios"
+        description="Trabajos con precio y tiempo ya definidos"
         actions={can('service:write') ? (
           <Button size="sm" onClick={() => setCreating(true)} tip="Los servicios del catálogo aceleran la carga de la OT y el presupuesto">
             <Plus className="size-4" aria-hidden /> Nuevo servicio
@@ -145,11 +146,26 @@ export default function ServiciosPage() {
         </Card>
       </div>
 
-      <Modal open={creating} onClose={() => setCreating(false)} title="Nuevo servicio" width="lg">
+      <Modal
+        open={creating}
+        onClose={() => setCreating(false)}
+        title="Nuevo servicio"
+        description="Un trabajo con precio y tiempo definidos, para cargarlo de un clic en la OT."
+        icon={<Wrench className="size-[19px]" aria-hidden />}
+        width="lg"
+        persistent
+      >
         <ServiceForm onSaved={() => { setCreating(false); refetch(); }} onCancel={() => setCreating(false)} />
       </Modal>
 
-      <Modal open={!!editing} onClose={() => setEditing(null)} title={editing ? `Editar · ${editing.name}` : ''} width="lg">
+      <Modal
+        open={!!editing}
+        onClose={() => setEditing(null)}
+        title={editing?.name ?? ''}
+        description="Precio, horas estimadas y categoría"
+        icon={<Wrench className="size-[19px]" aria-hidden />}
+        width="lg"
+      >
         {editing && <ServiceForm value={editing} onSaved={() => { setEditing(null); refetch(); }} onCancel={() => setEditing(null)} />}
       </Modal>
 

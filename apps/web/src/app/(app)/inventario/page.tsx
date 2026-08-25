@@ -167,7 +167,7 @@ export default function InventarioPage() {
 
   return (
     <>
-      <Topbar title="Inventario" actions={can('inventory:write') ? <Button size="sm" onClick={() => setOpen((o) => !o)}>{open ? <X className="size-4" aria-hidden /> : <Plus className="size-4" aria-hidden />}{open ? 'Cerrar' : 'Nuevo repuesto'}</Button> : undefined} />
+      <Topbar title="Inventario" description="Repuestos, stock y valorizado del depósito" actions={can('inventory:write') ? <Button size="sm" onClick={() => setOpen((o) => !o)}>{open ? <X className="size-4" aria-hidden /> : <Plus className="size-4" aria-hidden />}{open ? 'Cerrar' : 'Nuevo repuesto'}</Button> : undefined} />
 
       <div className="space-y-4 p-6">
         {open && (

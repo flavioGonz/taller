@@ -15,6 +15,7 @@ import { Modal, ConfirmDialog } from '@/components/modal';
 import { useApi } from '@/hooks/use-api';
 import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/components/toast';
 import { customerName, formatDate } from '@/lib/utils';
 import { InsurerAvatar } from '@/components/insurer-avatar';
 import {
@@ -110,6 +111,7 @@ const str = (v: string | number | null | undefined) => (v == null ? '' : String(
 export default function AseguradoraPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { can } = useAuth();
+  const toast = useToast();
   const { data, loading, refetch } = useApi<Insurer>(`/insurers/${id}`);
   const editable = can('catalog:write');
 
@@ -177,8 +179,10 @@ export default function AseguradoraPage({ params }: { params: Promise<{ id: stri
       });
       setSaved(true);
       refetch();
+      toast.ok('Condiciones guardadas', `Ya se validan al armar un expediente de ${data?.name ?? 'esta compañía'}.`);
     } catch (e) {
       setError((e as Error).message);
+      toast.error('No se pudo guardar', (e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -232,7 +236,6 @@ export default function AseguradoraPage({ params }: { params: Promise<{ id: stri
         </Link>
 
         {error && <p role="alert" className="rounded-[var(--r)] bg-[var(--falla-bg)] px-3 py-2 text-[13px] text-[var(--falla)]">{error}</p>}
-        {saved && <p className="rounded-[var(--r)] bg-[var(--ok-bg)] px-3 py-2 text-[13px] text-[var(--ok)]">Condiciones guardadas.</p>}
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           {/* ------------------------------------------------ condiciones */}
@@ -460,7 +463,14 @@ export default function AseguradoraPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
-      <Modal open={contactOpen} onClose={() => setContactOpen(false)} title="Nuevo contacto" width="sm">
+      <Modal
+        open={contactOpen}
+        onClose={() => setContactOpen(false)}
+        title="Nuevo contacto"
+        description="Perito, mesa de autorizaciones, liquidador: quién atiende de esta compañía."
+        icon={<Users className="size-[19px]" aria-hidden />}
+        width="sm"
+      >
         <form onSubmit={agregarContacto} className="space-y-3">
           <Input label="Nombre" value={contactDraft.name} onChange={(e) => setContactDraft({ ...contactDraft, name: e.target.value })} required autoFocus />
           <Input label="Rol" value={contactDraft.role} onChange={(e) => setContactDraft({ ...contactDraft, role: e.target.value })} placeholder="Perito, mesa de autorizaciones, liquidador…" />
@@ -480,6 +490,7 @@ export default function AseguradoraPage({ params }: { params: Promise<{ id: stri
         onClose={() => setRemoving(null)}
         title="Borrar contacto"
         message={`¿Borrar a ${removing?.name ?? ''} de los contactos de ${data.name}?`}
+        detail="No afecta a los expedientes ya cargados: sólo deja de aparecer en la lista de contactos."
         confirmLabel="Borrar"
         loading={busy}
         onConfirm={() => void (async () => {

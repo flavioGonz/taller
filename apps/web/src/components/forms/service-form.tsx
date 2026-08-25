@@ -55,9 +55,9 @@ export function ServiceForm({ value, onSaved, onCancel }: { value?: ServiceRecor
       </div>
 
       {error && <p role="alert" className="md:col-span-3 rounded-[var(--r)] bg-[var(--falla-bg)] px-3 py-2 text-[13px] text-[var(--falla)]">{error}</p>}
-      <div className="flex gap-2 md:col-span-3">
+      <div className="ts-form-actions md:col-span-3">
+        {onCancel && <Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button>}
         <Button type="submit" loading={saving}>{editing ? 'Guardar cambios' : 'Guardar servicio'}</Button>
-        {onCancel && <Button type="button" variant="secondary" onClick={onCancel}>Cancelar</Button>}
       </div>
     </form>
   );

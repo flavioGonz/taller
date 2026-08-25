@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { MoreVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -42,32 +43,35 @@ export function RowMenu({ actions, label = 'Acciones' }: { actions: RowAction[];
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={label}
-        className="focus-ring rounded-lg p-1.5 text-[var(--subtle)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
+        className="focus-ring grid size-8 place-items-center rounded-lg text-[var(--subtle)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)] aria-expanded:bg-[var(--surface-2)] aria-expanded:text-[var(--brand)]"
       >
         <MoreVertical className="size-4" aria-hidden />
       </button>
 
-      {open && (
-        <div
-          role="menu"
-          className="absolute right-0 z-40 mt-1 min-w-[180px] overflow-hidden rounded-[var(--r)] border border-[var(--border)] bg-[var(--surface)] p-1 shadow-[var(--sh-lg)]"
-        >
-          {visible.map((a) => (
-            <button
-              key={a.label}
-              role="menuitem"
-              onClick={(e) => { e.stopPropagation(); e.preventDefault(); setOpen(false); a.onClick(); }}
-              className={cn(
-                'focus-ring flex w-full items-center gap-2.5 rounded-[var(--r-sm)] px-3 py-2 text-left text-[13.5px]',
-                a.danger ? 'text-[var(--falla)] hover:bg-[var(--falla-bg)]' : 'hover:bg-[var(--surface-2)]',
-              )}
-            >
-              {a.icon}
-              {a.label}
-            </button>
-          ))}
-        </div>
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            role="menu"
+            initial={{ opacity: 0, y: -6, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+            transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+            className="ts-pop absolute right-0 z-40 mt-1 origin-top-right"
+          >
+            {visible.map((a) => (
+              <button
+                key={a.label}
+                role="menuitem"
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); setOpen(false); a.onClick(); }}
+                className={cn('ts-pop-item focus-ring', a.danger && 'danger')}
+              >
+                {a.icon}
+                {a.label}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

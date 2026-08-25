@@ -13,6 +13,7 @@ import { Modal } from '@/components/modal';
 import { api } from '@/lib/api';
 import { useApi } from '@/hooks/use-api';
 import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/components/toast';
 import { cn, formatDate } from '@/lib/utils';
 import {
   DOCUMENT_REQUIREMENTS, DEDUCTIBLE_COLLECTORS, DEDUCTIBLE_LABELS,
@@ -59,6 +60,7 @@ export function InsurancePanel({
   workOrderId: string; grandTotal: string; currency: string; onChange: () => void;
 }) {
   const { can } = useAuth();
+  const toast = useToast();
   const { data: kase, loading, refetch } = useApi<Kase | null>(`/work-orders/${workOrderId}/insurance`);
   const { data: insurers } = useApi<InsurerLite[]>('/insurers?auto=true');
   const editable = can('workorder:write');
@@ -100,15 +102,17 @@ export function InsurancePanel({
   const faltantes = (kase?.readiness.requirements ?? []).filter((r) => !r.ok);
   const decidido = kase && ['AUTORIZADO', 'AUTORIZADO_PARCIAL', 'RECHAZADO'].includes(kase.status);
 
-  async function run(fn: () => Promise<unknown>) {
+  async function run(fn: () => Promise<unknown>, okMsg?: string) {
     setBusy(true);
     setError(null);
     try {
       await fn();
       refetch();
       onChange();
+      if (okMsg) toast.ok(okMsg);
     } catch (e) {
       setError((e as Error).message);
+      toast.error('La compañía no acepta el expediente todavía', (e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -126,9 +130,12 @@ export function InsurancePanel({
     deductibleBy: form.deductibleBy,
     documents: docs,
     notes: form.notes.trim() || undefined,
-  }));
+  }), 'Expediente guardado');
 
-  const enviar = (force = false) => run(() => api.post(`/work-orders/${workOrderId}/insurance/submit`, { force }));
+  const enviar = (force = false) => run(
+    () => api.post(`/work-orders/${workOrderId}/insurance/submit`, { force }),
+    force ? 'Enviado igual, bajo tu responsabilidad' : 'Expediente enviado a autorizar',
+  );
 
   const registrar = () => run(async () => {
     await api.post(`/work-orders/${workOrderId}/insurance/authorization`, {
@@ -140,7 +147,7 @@ export function InsurancePanel({
       notes: auth.notes.trim() || undefined,
     });
     setAuthOpen(false);
-  });
+  }, 'Respuesta registrada: la OT ya se movió sola');
 
   const requiredDocs = useMemo(() => {
     const codes = (kase?.readiness.requirements ?? []).filter((r) => r.code.startsWith('doc_')).map((r) => r.code.slice(4));
@@ -296,6 +303,7 @@ export function InsurancePanel({
         onClose={() => setAuthOpen(false)}
         title="Respuesta de la compañía"
         description="Al registrarla, la OT pasa sola a aprobada o rechazada."
+        icon={<FileCheck2 className="size-[19px]" aria-hidden />}
         width="sm"
       >
         <div className="space-y-3">

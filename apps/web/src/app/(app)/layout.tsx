@@ -5,6 +5,9 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Tooltip } from 'react-tooltip';
 import { Sidebar } from '@/components/layout/sidebar';
 import { PageTransition } from '@/components/page-transition';
+import { ToastProvider } from '@/components/toast';
+import { CommandPalette } from '@/components/command-palette';
+import { Shortcuts } from '@/components/shortcuts';
 import { ComponentInspector } from '@/components/observability/component-inspector';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui';
@@ -42,32 +45,58 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (loading || !user) {
     return (
       <div className="flex min-h-dvh">
-        <Skeleton className="h-dvh w-[260px] rounded-none" />
-        <div className="flex-1 space-y-4 p-8">
-          <Skeleton className="h-10 w-64" />
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-64 w-full" />
+        <div className="ts-side hidden w-[268px] shrink-0 flex-col gap-2 p-4 md:flex">
+          <Skeleton className="h-10 w-40" />
+          <div className="mt-4 space-y-2">
+            {Array.from({ length: 9 }).map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}
+          </div>
+        </div>
+        <div className="flex-1">
+          <div className="ts-topbar flex h-16 items-center gap-4 px-5">
+            <Skeleton className="h-6 w-52" />
+            <Skeleton className="ml-auto h-9 w-56" />
+            <Skeleton className="size-9 !rounded-full" />
+          </div>
+          <div className="space-y-4 p-6">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20" />)}
+            </div>
+            <Skeleton className="h-64 w-full" />
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-dvh">
-      <Sidebar collapsed={collapsed} onToggle={toggle} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <main id="contenido" className="flex min-w-0 flex-1 flex-col">
-          <PageTransition>{children}</PageTransition>
-        </main>
-      </div>
-      <ComponentInspector route={pathname} />
-      {/* Un solo tooltip para toda la app: los componentes sólo marcan data-tooltip-* */}
-      <Tooltip
-        id="ts-tip"
-        place="top"
-        delayShow={250}
-        className="!z-[100] !max-w-xs !rounded-lg !bg-[var(--text)] !px-2.5 !py-1.5 !text-[12px] !leading-snug !opacity-100 !shadow-lg"
-      />
-    </div>
+    <ToastProvider>
+      <CommandPalette>
+        <a
+          href="#contenido"
+          className="focus-ring sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[90] focus:rounded-[var(--r)] focus:bg-[var(--surface)] focus:px-4 focus:py-2 focus:text-[13px] focus:font-semibold focus:shadow-[var(--sh-lg)]"
+        >
+          Saltar al contenido
+        </a>
+
+        <div className="flex min-h-dvh">
+          <Sidebar collapsed={collapsed} onToggle={toggle} />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <main id="contenido" className="flex min-w-0 flex-1 flex-col">
+              <PageTransition>{children}</PageTransition>
+            </main>
+          </div>
+          <ComponentInspector route={pathname} />
+          <Shortcuts />
+          {/* Un solo tooltip para toda la app: los componentes sólo marcan data-tooltip-* */}
+          <Tooltip
+            id="ts-tip"
+            place="top"
+            delayShow={280}
+            offset={9}
+            className="!z-[100] !max-w-xs !rounded-[10px] !bg-[var(--text)] !px-2.5 !py-1.5 !text-[12px] !font-medium !leading-snug !opacity-100 !shadow-[var(--sh-lg)]"
+          />
+        </div>
+      </CommandPalette>
+    </ToastProvider>
   );
 }

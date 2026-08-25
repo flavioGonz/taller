@@ -340,7 +340,14 @@ export default function ClientePage({ params }: { params: Promise<{ id: string }
         </div>
       </div>
 
-      <Modal open={editing} onClose={() => setEditing(false)} title="Editar cliente" width="md">
+      <Modal
+        open={editing}
+        onClose={() => setEditing(false)}
+        title="Editar cliente"
+        description="Datos de contacto, documento y condiciones comerciales"
+        icon={<User className="size-[19px]" aria-hidden />}
+        width="md"
+      >
         <CustomerForm
           value={data}
           onSaved={() => { setEditing(false); refetch(); }}

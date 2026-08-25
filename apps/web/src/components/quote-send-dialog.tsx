@@ -8,6 +8,7 @@ import { Modal } from '@/components/modal';
 import { Button, Input, Textarea } from '@/components/ui';
 import { PdfLink } from '@/components/pdf-link';
 import { api } from '@/lib/api';
+import { useToast } from '@/components/toast';
 import { cn } from '@/lib/utils';
 
 type Channel = 'EMAIL' | 'WHATSAPP' | 'PRESENCIAL';
@@ -54,6 +55,7 @@ export function QuoteSendDialog({
   customerPhone?: string | null;
   onSent: () => void;
 }) {
+  const toast = useToast();
   const [channels, setChannels] = useState<Channels | null>(null);
   const [channel, setChannel] = useState<Channel>('EMAIL');
   const [to, setTo] = useState('');
@@ -107,15 +109,18 @@ export function QuoteSendDialog({
         message: message.trim() || undefined,
         deliver: channel !== 'PRESENCIAL',
       });
-      setDone(
-        res.delivery
-          ? `Presupuesto enviado a ${res.delivery.target}`
-          : 'Presupuesto marcado como enviado',
-      );
+      const msg = res.delivery
+        ? `Presupuesto enviado a ${res.delivery.target}`
+        : 'Presupuesto marcado como enviado';
+      setDone(msg);
+      toast.ok(msg, res.delivery
+        ? 'El cliente recibió el PDF con el detalle completo.'
+        : 'Queda registrado que se lo entregaste en mano.');
       onSent();
-      setTimeout(onClose, 1400);
+      setTimeout(onClose, 1200);
     } catch (e) {
       setError((e as Error).message);
+      toast.error('No se pudo enviar', (e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -127,6 +132,8 @@ export function QuoteSendDialog({
       onClose={onClose}
       title={`Enviar presupuesto ${quoteNumber}`}
       description="El cliente recibe el PDF con el detalle de repuestos, mano de obra, plazos y garantía."
+      icon={<Send className="size-[19px]" aria-hidden />}
+      width="md"
       footer={
         <div className="flex items-center justify-between gap-3">
           <PdfLink

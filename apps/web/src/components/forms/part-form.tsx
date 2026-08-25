@@ -75,9 +75,9 @@ export function PartForm({
       </Select>
 
       {error && <p role="alert" className="md:col-span-4 rounded-[var(--r)] bg-[var(--falla-bg)] px-3 py-2 text-[13px] text-[var(--falla)]">{error}</p>}
-      <div className="flex gap-2 md:col-span-4">
+      <div className="ts-form-actions md:col-span-4">
+        {onCancel && <Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button>}
         <Button type="submit" loading={saving}>{editing ? 'Guardar cambios' : 'Guardar repuesto'}</Button>
-        {onCancel && <Button type="button" variant="secondary" onClick={onCancel}>Cancelar</Button>}
       </div>
     </form>
   );

@@ -169,6 +169,7 @@ export default function PostventaPage() {
     <>
       <Topbar
         title="Postventa"
+        description="El contacto con el cliente después de entregarle el vehículo"
         actions={can('followup:write') ? (
           <Button size="sm" onClick={() => setCreating(true)} tip="Agendar un llamado o recordatorio a mano">
             <Plus className="size-4" aria-hidden /> Nuevo seguimiento
@@ -278,6 +279,7 @@ export default function PostventaPage() {
         onClose={() => setCreating(false)}
         title="Nuevo seguimiento"
         description="Para llamar a un cliente sin que venga de una entrega: garantía, cobranza, recordatorio."
+        icon={<PhoneCall className="size-[19px]" aria-hidden />}
         width="sm"
       >
         <form onSubmit={crear} className="space-y-3">

@@ -200,8 +200,10 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
                     <li key={item.href}>
                       <Link
                         href={item.href}
-                        title={collapsed ? item.label : undefined}
                         aria-current={inBranch ? 'page' : undefined}
+                        data-tooltip-id={collapsed ? 'ts-tip' : undefined}
+                        data-tooltip-content={collapsed ? item.label : undefined}
+                        data-tooltip-place="right"
                         className={cn('ts-nav-item focus-ring', collapsed && 'justify-center')}
                       >
                         <Icon className="size-[18px] shrink-0" aria-hidden />
@@ -227,7 +229,13 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
                 <p className="truncate text-[13px] font-semibold">{user?.firstName} {user?.lastName}</p>
                 <p className="truncate text-[11px] text-[var(--subtle)]">{user ? ROLE_LABELS[user.role] : ''}</p>
               </div>
-              <button onClick={() => void logout()} className="focus-ring rounded-lg p-1.5 text-[var(--subtle)] hover:bg-[var(--surface-2)] hover:text-[var(--falla)]" aria-label="Cerrar sesión" title="Cerrar sesión">
+              <button
+                onClick={() => void logout()}
+                className="focus-ring grid size-8 place-items-center rounded-lg text-[var(--subtle)] transition hover:bg-[var(--falla-bg)] hover:text-[var(--falla)]"
+                aria-label="Cerrar sesión"
+                data-tooltip-id="ts-tip"
+                data-tooltip-content="Cerrar sesión"
+              >
                 <LogOut className="size-4" aria-hidden />
               </button>
             </>
@@ -238,9 +246,18 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
           onClick={onToggle}
           className="focus-ring mt-1 flex w-full items-center justify-center gap-2 rounded-xl py-2 text-[12px] text-[var(--subtle)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
           aria-label={collapsed ? 'Expandir menú' : 'Colapsar menú'}
+          data-tooltip-id="ts-tip"
+          data-tooltip-content={collapsed ? 'Expandir el menú' : 'Dejar sólo los íconos'}
         >
           {collapsed ? <Menu className="size-4" aria-hidden /> : <><ChevronLeft className="size-4" aria-hidden /> Colapsar</>}
         </button>
+
+        {!collapsed && (
+          <p className="mt-1 flex items-center justify-center gap-1.5 text-[10.5px] text-[var(--subtle)]">
+            <kbd className="ts-kbd">Ctrl</kbd><kbd className="ts-kbd">K</kbd> para buscar ·
+            <kbd className="ts-kbd">?</kbd> atajos
+          </p>
+        )}
       </div>
     </motion.aside>
   );

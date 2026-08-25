@@ -7,7 +7,7 @@ import {
   Plus, Search, LayoutGrid, List, Columns3, Filter, X, Clock, AlertTriangle,
   Car, Wrench, Package, Fingerprint, User, ShieldCheck, CircleDollarSign, Timer,
 } from 'lucide-react';
-import { Button, Card, CardBody, Input, Select, Skeleton, Badge, Stat } from '@/components/ui';
+import { Button, Card, CardBody, Input, Select, Skeleton, Badge, Stat, Segmented, EmptyState } from '@/components/ui';
 import { DataTable, type Column } from '@/components/data-table';
 import { WorkOrderCard, KindChip, type WorkOrderRow } from '@/components/work-order-card';
 import { ProcessDots, ProcessBar } from '@/components/process-stepper';
@@ -313,26 +313,13 @@ export function WorkOrdersView({
             </Button>
           )}
 
-          <div className="ts-tabs mb-0.5 ml-auto !p-1" role="tablist" aria-label="Cambiar vista">
-            {VIEWS.map((v) => (
-              <button
-                key={v.key}
-                role="tab"
-                type="button"
-                aria-selected={view === v.key}
-                onClick={() => changeView(v.key)}
-                className="ts-tab focus-ring !px-2.5"
-                data-tooltip-id="ts-tip"
-                data-tooltip-content={v.tip}
-              >
-                {view === v.key && (
-                  <motion.span layoutId={`wo-view-${storageKey}`} className="ts-tab-ink" transition={{ type: 'spring', stiffness: 420, damping: 34 }} aria-hidden />
-                )}
-                <v.icon className="size-4" aria-hidden />
-                <span className="hidden sm:inline">{v.label}</span>
-              </button>
-            ))}
-          </div>
+          <Segmented
+            className="mb-0.5 ml-auto"
+            label="Cambiar vista"
+            value={view}
+            onChange={changeView}
+            options={VIEWS.map((v) => ({ value: v.key, label: v.label, icon: v.icon, tip: v.tip }))}
+          />
         </CardBody>
       </Card>
 
@@ -386,7 +373,9 @@ export function WorkOrdersView({
                           ))}
                         </AnimatePresence>
                         {items.length === 0 && (
-                          <p className="px-2 py-8 text-center text-[11.5px] text-[var(--subtle)]">Sin vehículos en esta etapa</p>
+                          <p className="rounded-[var(--r)] border border-dashed border-[var(--border-strong)] px-2 py-7 text-center text-[11.5px] text-[var(--subtle)]">
+                            Sin vehículos acá
+                          </p>
                         )}
                       </div>
                     </section>
@@ -402,7 +391,20 @@ export function WorkOrdersView({
                 {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-72" />)}
               </div>
             ) : rows.length === 0 ? (
-              <Card><CardBody className="py-16 text-center text-[13.5px] text-[var(--muted)]">No hay órdenes que coincidan con el filtro.</CardBody></Card>
+              <Card>
+                <CardBody>
+                  <EmptyState
+                    icon={<Car className="size-7" aria-hidden />}
+                    title={filtersOn ? 'Ninguna orden coincide con el filtro' : 'No hay vehículos en el taller'}
+                    description={filtersOn
+                      ? 'Probá aflojando algún filtro: etapa, tipo de ingreso, técnico o atrasadas.'
+                      : 'Cuando ingrese un vehículo va a aparecer acá con su foto y su recorrido.'}
+                    action={filtersOn
+                      ? <Button size="sm" variant="secondary" onClick={clear}><X className="size-4" aria-hidden /> Limpiar filtros</Button>
+                      : <Link href="/ordenes/nueva"><Button size="sm"><Plus className="size-4" aria-hidden /> Registrar un ingreso</Button></Link>}
+                  />
+                </CardBody>
+              </Card>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {rows.map((wo) => <WorkOrderCard key={wo.id} row={wo} />)}

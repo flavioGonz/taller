@@ -84,6 +84,7 @@ export default function AseguradorasPage() {
     <>
       <Topbar
         title="Aseguradoras"
+        description="Las compañías con las que trabaja el taller y sus condiciones"
         actions={can('catalog:write') ? (
           <Button size="sm" onClick={() => setCreating(true)} tip="Agregá una compañía que no esté en el catálogo">
             <Plus className="size-4" aria-hidden /> Nueva aseguradora
@@ -220,6 +221,7 @@ export default function AseguradorasPage() {
         onClose={() => setCreating(false)}
         title="Nueva aseguradora"
         description="Cargá el nombre y después completás las condiciones del convenio."
+        icon={<ShieldCheck className="size-[19px]" aria-hidden />}
         width="sm"
       >
         <form onSubmit={crear} className="space-y-3">

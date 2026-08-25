@@ -14,6 +14,7 @@ import { api, qs } from '@/lib/api';
 import { customerName, cn } from '@/lib/utils';
 import type { Paginated } from '@taller/shared';
 import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/components/toast';
 
 interface Row extends CustomerRecord {
   id: string;
@@ -24,6 +25,7 @@ interface Row extends CustomerRecord {
 
 export default function ClientesPage() {
   const { can } = useAuth();
+  const toast = useToast();
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<Row | null>(null);
@@ -38,8 +40,11 @@ export default function ClientesPage() {
     setBusy(true);
     try {
       await api.del(`/customers/${removing.id}`);
+      toast.ok('Cliente dado de baja', `${customerName(removing)} ya no aparece en las listas.`);
       setRemoving(null);
       refetch();
+    } catch (e) {
+      toast.error('No se pudo dar de baja', (e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -151,6 +156,7 @@ export default function ClientesPage() {
     <>
       <Topbar
         title="Clientes"
+        description="Personas y empresas que dejan sus vehículos en el taller"
         actions={can('customer:write') ? (
           <Button size="sm" onClick={() => setCreating(true)} tip="Alta de persona o empresa">
             <Plus className="size-4" aria-hidden /> Nuevo cliente
@@ -200,11 +206,26 @@ export default function ClientesPage() {
         </Card>
       </div>
 
-      <Modal open={creating} onClose={() => setCreating(false)} title="Nuevo cliente" width="lg">
+      <Modal
+        open={creating}
+        onClose={() => setCreating(false)}
+        title="Nuevo cliente"
+        description="Persona o empresa; después le asociás los vehículos."
+        icon={<User className="size-[19px]" aria-hidden />}
+        width="lg"
+        persistent
+      >
         <CustomerForm onSaved={() => { setCreating(false); refetch(); }} onCancel={() => setCreating(false)} />
       </Modal>
 
-      <Modal open={!!editing} onClose={() => setEditing(null)} title={editing ? `Editar · ${customerName(editing)}` : ''} width="lg">
+      <Modal
+        open={!!editing}
+        onClose={() => setEditing(null)}
+        title={editing ? customerName(editing) : ''}
+        description="Datos de contacto, documento y condiciones comerciales"
+        icon={<User className="size-[19px]" aria-hidden />}
+        width="lg"
+      >
         {editing && <CustomerForm value={editing} onSaved={() => { setEditing(null); refetch(); }} onCancel={() => setEditing(null)} />}
       </Modal>
 
@@ -213,8 +234,10 @@ export default function ClientesPage() {
         onClose={() => setRemoving(null)}
         onConfirm={() => void eliminar()}
         loading={busy}
-        title="Eliminar cliente"
-        message={removing ? `Se dará de baja a ${customerName(removing)}. Sus vehículos y órdenes quedan en el historial, pero no vas a poder abrir OT nuevas a su nombre.` : ''}
+        title="Dar de baja el cliente"
+        confirmLabel="Dar de baja"
+        message={removing ? `${customerName(removing)} deja de aparecer para abrir órdenes nuevas.` : ''}
+        detail="Sus vehículos, órdenes, presupuestos y facturas quedan intactos en el historial."
       />
     </>
   );

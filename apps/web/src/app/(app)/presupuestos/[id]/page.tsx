@@ -18,6 +18,7 @@ import {
   type QuoteStatus, type ItemDecision,
 } from '@taller/shared';
 import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/components/toast';
 import { cn } from '@/lib/utils';
 
 interface Item {
@@ -49,6 +50,7 @@ const TONE: Record<QuoteStatus, 'neutral' | 'info' | 'success' | 'warn' | 'dange
 export default function PresupuestoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { can } = useAuth();
+  const toast = useToast();
   const { data, loading, refetch } = useApi<Quote>(`/quotes/${id}`);
 
   const [decisions, setDecisions] = useState<Record<string, ItemDecision>>({});
@@ -98,6 +100,7 @@ export default function PresupuestoPage({ params }: { params: Promise<{ id: stri
       refetch();
     } catch (e) {
       setError((e as Error).message);
+      toast.error('No se pudo completar la acción', (e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -272,6 +275,7 @@ export default function PresupuestoPage({ params }: { params: Promise<{ id: stri
                           warrantyDays: warranty === '' ? null : Number(warranty),
                         });
                         setSavedTerms(true);
+                        toast.ok('Condiciones guardadas', 'Ya salen impresas en el PDF del presupuesto.');
                       })}
                     >
                       <Save className="size-3.5" aria-hidden /> Guardar

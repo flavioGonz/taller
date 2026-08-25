@@ -28,6 +28,7 @@ import billingRoutes from './modules/billing.routes.js';
 import dashboardRoutes from './modules/dashboard.routes.js';
 import observabilityRoutes from './modules/observability.routes.js';
 import fileRoutes from './modules/files.routes.js';
+import searchRoutes from './modules/search.routes.js';
 import catalogRoutes from './modules/catalog.routes.js';
 import appointmentRoutes from './modules/appointments.routes.js';
 import inspectionRoutes from './modules/inspections.routes.js';
@@ -144,6 +145,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(billingRoutes, { prefix: '/api/billing' });
   await app.register(dashboardRoutes, { prefix: '/api/dashboard' });
   await app.register(fileRoutes, { prefix: '/api' });
+  await app.register(searchRoutes, { prefix: '/api/search' });
   await app.register(catalogRoutes, { prefix: '/api/catalog' });
   await app.register(appointmentRoutes, { prefix: '/api/appointments' });
   await app.register(inspectionRoutes, { prefix: '/api/inspections' });

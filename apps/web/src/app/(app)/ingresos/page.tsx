@@ -34,6 +34,7 @@ export default function IngresosPage() {
     <>
       <Topbar
         title="Ingresos"
+        description="Los vehículos agrupados por cómo entraron al taller"
         actions={
           <Link href="/ordenes/nueva">
             <Button size="sm" tip="Registrar el ingreso de un vehículo">

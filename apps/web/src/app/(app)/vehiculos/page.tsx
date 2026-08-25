@@ -139,7 +139,15 @@ export default function VehiculosPage() {
         )}
       </div>
 
-      <Modal open={creating} onClose={() => setCreating(false)} title="Nuevo vehículo" width="lg">
+      <Modal
+        open={creating}
+        onClose={() => setCreating(false)}
+        title="Nuevo vehículo"
+        description="Marca, modelo, color y detalles visuales; después se le hace el relevamiento fotográfico."
+        icon={<Car className="size-[19px]" aria-hidden />}
+        width="lg"
+        persistent
+      >
         <VehicleForm
           customers={customers.data ?? []}
           onSaved={() => { setCreating(false); refetch(); }}
@@ -147,7 +155,14 @@ export default function VehiculosPage() {
         />
       </Modal>
 
-      <Modal open={!!editing} onClose={() => setEditing(null)} title={editing ? `Editar · ${editing.plate}` : ''} width="lg">
+      <Modal
+        open={!!editing}
+        onClose={() => setEditing(null)}
+        title={editing?.plate ?? ''}
+        description="Datos del vehículo y su dueño"
+        icon={<Car className="size-[19px]" aria-hidden />}
+        width="lg"
+      >
         {editing && (
           <VehicleForm
             value={editing}

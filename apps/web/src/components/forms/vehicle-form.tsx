@@ -172,9 +172,9 @@ export function VehicleForm({
 
       {error && <p role="alert" className="rounded-[var(--r)] bg-[var(--falla-bg)] px-3 py-2 text-[13px] text-[var(--falla)]">{error}</p>}
 
-      <div className="flex gap-2">
+      <div className="ts-form-actions">
+        {onCancel && <Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button>}
         <Button type="submit" loading={saving}>{editing ? 'Guardar cambios' : 'Guardar vehículo'}</Button>
-        {onCancel && <Button type="button" variant="secondary" onClick={onCancel}>Cancelar</Button>}
       </div>
     </form>
   );

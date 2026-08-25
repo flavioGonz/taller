@@ -18,6 +18,7 @@ import { RowMenu } from '@/components/row-menu';
 import { ImagePicker } from '@/components/image-picker';
 import { UserForm, type UserRecord } from '@/components/forms/user-form';
 import { useApi } from '@/hooks/use-api';
+import { useToast } from '@/components/toast';
 import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/use-auth';
 import { cn, formatDate } from '@/lib/utils';
@@ -111,8 +112,8 @@ export default function ConfiguracionPage() {
   const { can } = useAuth();
   const editable = can('tenant:write');
 
+  const toast = useToast();
   const [tab, setTab] = useState<TabKey>('taller');
-  const [saved, setSaved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -145,20 +146,16 @@ export default function ConfiguracionPage() {
     setCfg(withSettingsDefaults(tenant.data.settings));
   }, [tenant.data]);
 
-  function flash(msg: string) {
-    setSaved(msg);
-    setTimeout(() => setSaved(null), 2600);
-  }
-
   async function save(patch: Record<string, unknown>, msg: string) {
     setBusy(true);
     setError(null);
     try {
       await api.patch('/tenants/current', patch);
       tenant.refetch();
-      flash(msg);
+      toast.ok(msg, 'Los cambios ya están activos para todo el taller.');
     } catch (e) {
       setError((e as Error).message);
+      toast.error('No se pudo guardar', (e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -322,12 +319,8 @@ export default function ConfiguracionPage() {
     <>
       <Topbar
         title="Configuración"
-        actions={
-          <>
-            {saved && <Badge tone="success"><CheckCircle2 className="size-3.5" aria-hidden /> {saved}</Badge>}
-            {!editable && <Badge tone="warn">Sólo lectura</Badge>}
-          </>
-        }
+        description="Todo lo que define cómo trabaja el taller dentro del sistema"
+        actions={!editable ? <Badge tone="warn"><ShieldCheck className="size-3.5" aria-hidden /> Sólo lectura</Badge> : undefined}
       />
 
       <div className="space-y-4 p-6">
@@ -727,11 +720,26 @@ export default function ConfiguracionPage() {
       </div>
 
       {/* ------------------------------------------------------------ modales */}
-      <Modal open={userOpen} onClose={() => setUserOpen(false)} title="Nuevo usuario" width="md">
+      <Modal
+        open={userOpen}
+        onClose={() => setUserOpen(false)}
+        title="Nuevo usuario"
+        description="Se le crea el acceso con el rol que elijas; puede cambiar la contraseña al entrar."
+        icon={<Users className="size-[19px]" aria-hidden />}
+        width="md"
+        persistent
+      >
         <UserForm onSaved={() => { setUserOpen(false); users.refetch(); }} onCancel={() => setUserOpen(false)} />
       </Modal>
 
-      <Modal open={!!editingUser} onClose={() => setEditingUser(null)} title={editingUser ? `Editar · ${editingUser.firstName} ${editingUser.lastName}` : ''} width="md">
+      <Modal
+        open={!!editingUser}
+        onClose={() => setEditingUser(null)}
+        title={editingUser ? `${editingUser.firstName} ${editingUser.lastName}` : ''}
+        description="Datos de acceso y rol dentro del taller"
+        icon={<Users className="size-[19px]" aria-hidden />}
+        width="md"
+      >
         {editingUser && <UserForm value={editingUser} onSaved={() => { setEditingUser(null); users.refetch(); }} onCancel={() => setEditingUser(null)} />}
       </Modal>
 
@@ -740,6 +748,8 @@ export default function ConfiguracionPage() {
         onClose={() => setResetting(null)}
         title="Restablecer contraseña"
         description={resetting ? `Se le asigna una contraseña nueva a ${resetting.firstName}. Tiene que cambiarla al entrar.` : ''}
+        icon={<KeyRound className="size-[19px]" aria-hidden />}
+        tone="warn"
         width="sm"
       >
         <form
@@ -749,7 +759,7 @@ export default function ConfiguracionPage() {
             if (!resetting) return;
             setBusy(true);
             void api.post(`/users/${resetting.id}/reset-password`, { password: newPass })
-              .then(() => { setResetting(null); flash('Contraseña restablecida'); })
+              .then(() => { setResetting(null); toast.ok('Contraseña restablecida', `${resetting.firstName} tiene que cambiarla al entrar.`); })
               .catch((err) => setError((err as Error).message))
               .finally(() => setBusy(false));
           }}
@@ -767,7 +777,9 @@ export default function ConfiguracionPage() {
         onClose={() => setRemovingUser(null)}
         loading={busy}
         title="Eliminar usuario"
-        message={removingUser ? `${removingUser.firstName} ${removingUser.lastName} deja de tener acceso. Su historial de trabajo se conserva.` : ''}
+        message={removingUser ? `${removingUser.firstName} ${removingUser.lastName} deja de tener acceso al sistema.` : ''}
+        detail="Su historial de trabajo, las órdenes que atendió y los partes de horas se conservan tal cual."
+        confirmLabel="Quitar acceso"
         onConfirm={() => {
           if (!removingUser) return;
           setBusy(true);
@@ -777,7 +789,14 @@ export default function ConfiguracionPage() {
         }}
       />
 
-      <Modal open={bayOpen} onClose={() => setBayOpen(false)} title={bayDraft.id ? 'Editar bahía' : 'Nueva bahía'} width="sm">
+      <Modal
+        open={bayOpen}
+        onClose={() => setBayOpen(false)}
+        title={bayDraft.id ? 'Editar bahía' : 'Nueva bahía'}
+        description="Los puestos físicos donde se trabaja el vehículo"
+        icon={<Warehouse className="size-[19px]" aria-hidden />}
+        width="sm"
+      >
         <form
           className="space-y-3"
           onSubmit={(e: FormEvent) => {
@@ -786,8 +805,8 @@ export default function ConfiguracionPage() {
             const body = { name: bayDraft.name.trim(), kind: bayDraft.kind.trim() };
             const req = bayDraft.id ? api.patch(`/users/bays/${bayDraft.id}`, body) : api.post('/users/bays', body);
             void req
-              .then(() => { setBayOpen(false); bays.refetch(); })
-              .catch((err) => setError((err as Error).message))
+              .then(() => { setBayOpen(false); bays.refetch(); toast.ok(bayDraft.id ? 'Bahía actualizada' : 'Bahía creada'); })
+              .catch((err) => { setError((err as Error).message); toast.error('No se pudo guardar la bahía', (err as Error).message); })
               .finally(() => setBusy(false));
           }}
         >
@@ -804,10 +823,15 @@ export default function ConfiguracionPage() {
         open={!!removingBay}
         onClose={() => setRemovingBay(null)}
         loading={busy}
-        title="Eliminar bahía"
+        title={removingBay && removingBay._count.workOrders > 0 ? 'Poner fuera de servicio' : 'Eliminar bahía'}
+        tone={removingBay && removingBay._count.workOrders > 0 ? 'warn' : 'danger'}
+        confirmLabel={removingBay && removingBay._count.workOrders > 0 ? 'Poner fuera de servicio' : 'Eliminar'}
         message={removingBay ? (removingBay._count.workOrders > 0
-          ? `${removingBay.name} tiene ${removingBay._count.workOrders} órdenes en su historial, así que no se borra: queda fuera de servicio y no se va a poder asignar más.`
+          ? `${removingBay.name} tiene ${removingBay._count.workOrders} órdenes en su historial, así que no se borra.`
           : `Se elimina la bahía ${removingBay.name}.`) : ''}
+        detail={removingBay && removingBay._count.workOrders > 0
+          ? 'Queda marcada como fuera de servicio: no se va a poder asignar más, pero el historial se mantiene.'
+          : undefined}
         onConfirm={() => {
           if (!removingBay) return;
           setBusy(true);

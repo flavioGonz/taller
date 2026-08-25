@@ -128,7 +128,7 @@ export default function FacturacionPage() {
 
   return (
     <>
-      <Topbar title="Facturación" />
+      <Topbar title="Facturación" description="Comprobantes emitidos, cobros y saldos" />
 
       <div className="space-y-4 p-6">
         {paying && (
