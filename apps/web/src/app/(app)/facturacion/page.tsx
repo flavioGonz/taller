@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { CreditCard, Hash, DollarSign, FileText, Filter } from 'lucide-react';
+import { CreditCard, Hash, DollarSign, FileText, Filter, Receipt, Wallet, AlertTriangle } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
-import { Button, Card, CardBody, Select, Skeleton, EmptyState, Table, Th, Td, Badge, Input } from '@/components/ui';
+import { Button, Card, CardBody, Select, Badge, Input, Stat } from '@/components/ui';
+import { DataTable, type Column } from '@/components/data-table';
 import { useApi } from '@/hooks/use-api';
 import { api, qs } from '@/lib/api';
-import { customerName, formatDate } from '@/lib/utils';
+import { customerName, formatDate, cn } from '@/lib/utils';
 import { formatMoney, type Paginated } from '@taller/shared';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -41,6 +42,90 @@ export default function FacturacionPage() {
     refetch();
   }
 
+  const rowsNow = data?.rows ?? [];
+  const totalFacturado = rowsNow.reduce((a, d) => a + Number(d.total), 0);
+  const totalCobrado = rowsNow.reduce((a, d) => a + Number(d.paid), 0);
+  const totalSaldo = Math.max(0, totalFacturado - totalCobrado);
+  const conSaldo = rowsNow.filter((d) => Number(d.total) - Number(d.paid) > 0 && d.status !== 'ANULADO').length;
+
+  const columns: Column<Doc>[] = [
+    {
+      key: 'documento',
+      header: 'Documento',
+      sortValue: (d) => d.number,
+      cell: (d) => (
+        <div className="min-w-0">
+          <p className="mono text-[13px] font-bold">{d.number}</p>
+          <p className="text-[11px] uppercase tracking-wide text-[var(--muted)]">{d.type.toLowerCase()}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'cliente',
+      header: 'Cliente',
+      sortValue: (d) => customerName(d.customer),
+      cell: (d) => <span className="block max-w-[210px] truncate text-[13px]">{customerName(d.customer)}</span>,
+    },
+    {
+      key: 'ot',
+      header: 'OT',
+      hideBelow: 'lg',
+      sortValue: (d) => d.workOrder?.number ?? '',
+      cell: (d) => d.workOrder
+        ? <a href={`/ordenes/${d.workOrder.id}`} className="focus-ring mono rounded text-[12.5px] hover:text-[var(--brand)]">{d.workOrder.number}</a>
+        : <span className="text-[var(--subtle)]">—</span>,
+    },
+    {
+      key: 'fecha',
+      header: 'Fecha',
+      hideBelow: 'md',
+      sortValue: (d) => new Date(d.issueDate).getTime(),
+      cell: (d) => <span className="text-[12.5px] text-[var(--muted)]">{formatDate(d.issueDate)}</span>,
+    },
+    {
+      key: 'estado',
+      header: 'Estado',
+      sortValue: (d) => d.status,
+      cell: (d) => <Badge tone={TONE[d.status] ?? 'neutral'}>{d.status.toLowerCase()}</Badge>,
+    },
+    {
+      key: 'total',
+      header: 'Total',
+      align: 'right',
+      sortValue: (d) => Number(d.total),
+      cell: (d) => <span className="mono text-[13px]">{formatMoney(d.total, d.currency)}</span>,
+    },
+    {
+      key: 'saldo',
+      header: 'Saldo',
+      align: 'right',
+      tip: 'Lo que falta cobrar de este documento',
+      sortValue: (d) => Number(d.total) - Number(d.paid),
+      cell: (d) => {
+        const saldo = Number(d.total) - Number(d.paid);
+        return (
+          <span className={cn('mono text-[13px] font-semibold', saldo > 0 ? 'text-[var(--falla)]' : 'text-[var(--ok)]')}>
+            {formatMoney(saldo, d.currency)}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'accion',
+      header: '',
+      width: '84px',
+      align: 'right',
+      cell: (d) => {
+        const saldo = Number(d.total) - Number(d.paid);
+        return can('billing:write') && saldo > 0 && d.status !== 'ANULADO' ? (
+          <Button size="sm" variant="secondary" onClick={() => setPaying(d)} tip="Registrar un cobro sobre este documento">
+            <CreditCard className="size-3.5" aria-hidden /> Cobrar
+          </Button>
+        ) : null;
+      },
+    },
+  ];
+
   return (
     <>
       <Topbar title="Facturación" />
@@ -69,64 +154,47 @@ export default function FacturacionPage() {
           </Card>
         )}
 
-        <Card>
-          <CardBody className="flex flex-wrap gap-4">
-            <div className="w-48">
-              <Select label="Tipo" name="type" icon={<FileText className="size-3.5" aria-hidden />} value={type} onChange={(e) => { setType(e.target.value); setPage(1); }}>
-                <option value="">Todos</option><option value="PRESUPUESTO">Presupuesto</option>
-                <option value="FACTURA">Factura</option><option value="REMITO">Remito</option><option value="RECIBO">Recibo</option>
-              </Select>
-            </div>
-            <div className="w-48">
-              <Select label="Estado" name="status" icon={<Filter className="size-3.5" aria-hidden />} value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
-                <option value="">Todos</option><option value="EMITIDO">Emitido</option><option value="PARCIAL">Parcial</option>
-                <option value="PAGADO">Pagado</option><option value="ANULADO">Anulado</option>
-              </Select>
-            </div>
-          </CardBody>
-        </Card>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Stat icon={<Receipt className="size-4" aria-hidden />} label="Documentos" value={String(data?.total ?? 0)} hint="Con el filtro actual" />
+          <Stat icon={<Wallet className="size-4" aria-hidden />} label="Facturado" value={formatMoney(totalFacturado)} />
+          <Stat icon={<CreditCard className="size-4" aria-hidden />} label="Cobrado" value={formatMoney(totalCobrado)} tone="ok" />
+          <Stat icon={<AlertTriangle className="size-4" aria-hidden />} label="Por cobrar" value={formatMoney(totalSaldo)} hint={`${conSaldo} documentos`} tone={totalSaldo > 0 ? 'warn' : 'ok'} />
+        </div>
 
         <Card>
           <CardBody className="p-0">
-            {loading && !data ? (
-              <div className="space-y-2 p-4">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
-            ) : (data?.rows.length ?? 0) === 0 ? (
-              <EmptyState title="Sin documentos" description="Los presupuestos se generan desde el detalle de cada orden de trabajo." />
-            ) : (
-              <>
-                <Table>
-                  <thead><tr><Th>Documento</Th><Th>Cliente</Th><Th>OT</Th><Th>Fecha</Th><Th>Estado</Th><Th className="text-right">Total</Th><Th className="text-right">Saldo</Th><Th /></tr></thead>
-                  <tbody>
-                    {data!.rows.map((d) => {
-                      const saldo = Number(d.total) - Number(d.paid);
-                      return (
-                        <tr key={d.id} className="transition-colors hover:bg-[var(--surface-2)]">
-                          <Td className="font-medium">{d.number}<div className="text-[11px] font-normal text-[var(--text-muted)]">{d.type.toLowerCase()}</div></Td>
-                          <Td className="max-w-[200px] truncate">{customerName(d.customer)}</Td>
-                          <Td className="text-xs">{d.workOrder?.number ?? '—'}</Td>
-                          <Td className="text-xs">{formatDate(d.issueDate)}</Td>
-                          <Td><Badge tone={TONE[d.status] ?? 'neutral'}>{d.status.toLowerCase()}</Badge></Td>
-                          <Td className="text-right tabular-nums">{formatMoney(d.total, d.currency)}</Td>
-                          <Td className="text-right tabular-nums">{formatMoney(saldo, d.currency)}</Td>
-                          <Td className="text-right">
-                            {can('billing:write') && saldo > 0 && d.status !== 'ANULADO' && (
-                              <Button size="sm" variant="outline" onClick={() => setPaying(d)}>Pagar</Button>
-                            )}
-                          </Td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </Table>
-                <div className="flex items-center justify-between border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--text-muted)]">
-                  <span>{data!.total} documentos · página {data!.page} de {data!.pages}</span>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Anterior</Button>
-                    <Button variant="outline" size="sm" disabled={page >= data!.pages} onClick={() => setPage((p) => p + 1)}>Siguiente</Button>
-                  </div>
-                </div>
-              </>
-            )}
+            <DataTable
+              id="facturacion"
+              rows={data?.rows}
+              loading={loading}
+              getKey={(d) => d.id}
+              columns={columns}
+              zebra
+              emptyIcon={<Receipt className="size-6" aria-hidden />}
+              emptyTitle="Sin documentos"
+              emptyDescription="Las facturas y recibos se emiten al entregar el vehículo, desde la orden de trabajo."
+              toolbar={
+                <>
+                  <Select aria-label="Tipo de documento" icon={<FileText className="size-3.5" aria-hidden />} value={type} onChange={(e) => { setType(e.target.value); setPage(1); }} className="!w-44">
+                    <option value="">Todos los tipos</option><option value="PRESUPUESTO">Presupuesto</option>
+                    <option value="FACTURA">Factura</option><option value="REMITO">Remito</option><option value="RECIBO">Recibo</option>
+                  </Select>
+                  <Select aria-label="Estado" icon={<Filter className="size-3.5" aria-hidden />} value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="!w-44">
+                    <option value="">Todos los estados</option><option value="EMITIDO">Emitido</option><option value="PARCIAL">Parcial</option>
+                    <option value="PAGADO">Pagado</option><option value="ANULADO">Anulado</option>
+                  </Select>
+                </>
+              }
+              footer={
+                <>
+                  <span>{data?.total ?? 0} documentos · página {data?.page ?? 1} de {data?.pages ?? 1}</span>
+                  <span className="flex gap-2">
+                    <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Anterior</Button>
+                    <Button variant="secondary" size="sm" disabled={page >= (data?.pages ?? 1)} onClick={() => setPage((p) => p + 1)}>Siguiente</Button>
+                  </span>
+                </>
+              }
+            />
           </CardBody>
         </Card>
       </div>

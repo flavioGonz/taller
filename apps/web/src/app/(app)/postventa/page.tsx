@@ -7,7 +7,8 @@ import {
   User, Car, Smile,
 } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
-import { Button, Card, CardBody, CardHeader, CardTitle, Select, Textarea, Input, Skeleton, EmptyState, Table, Th, Td, Badge, Stat } from '@/components/ui';
+import { Button, Card, CardBody, CardHeader, CardTitle, Select, Textarea, Input, Badge, Stat } from '@/components/ui';
+import { DataTable, type Column } from '@/components/data-table';
 import { Modal } from '@/components/modal';
 import { useApi } from '@/hooks/use-api';
 import { api, qs } from '@/lib/api';
@@ -82,6 +83,88 @@ export default function PostventaPage() {
 
   const overdue = (f: FollowUp) => f.status === 'PENDIENTE' && new Date(f.dueAt) <= new Date();
 
+  const columns: Column<FollowUp>[] = [
+    {
+      key: 'tipo',
+      header: 'Seguimiento',
+      sortValue: (f) => FOLLOWUP_LABELS[f.kind],
+      cell: (f) => (
+        <div className="min-w-0">
+          <p className="text-[13.5px] font-semibold">{FOLLOWUP_LABELS[f.kind]}</p>
+          {f.workOrder && (
+            <Link href={`/ordenes/${f.workOrder.id}`} className="focus-ring mono rounded text-[11.5px] text-[var(--brand)] hover:underline">
+              {f.workOrder.number}
+            </Link>
+          )}
+          {f.notes && <p className="max-w-[260px] truncate text-[11.5px] text-[var(--muted)]">{f.notes}</p>}
+        </div>
+      ),
+    },
+    {
+      key: 'cliente',
+      header: 'Cliente',
+      sortValue: (f) => (f.customer ? customerName(f.customer) : ''),
+      cell: (f) => (
+        <div className="min-w-0">
+          <p className="truncate text-[13px]">{f.customer ? customerName(f.customer) : '—'}</p>
+          {f.customer?.phone && (
+            <a href={`tel:${f.customer.phone}`} className="focus-ring mono flex items-center gap-1 rounded text-[11.5px] text-[var(--muted)] hover:text-[var(--brand)]">
+              <PhoneCall className="size-3 shrink-0" aria-hidden />{f.customer.phone}
+            </a>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'vehiculo',
+      header: 'Vehículo',
+      hideBelow: 'md',
+      sortValue: (f) => f.vehicle?.plate ?? '',
+      cell: (f) => f.vehicle
+        ? <span className="mono text-[12.5px]">{f.vehicle.plate}<span className="block text-[11px] text-[var(--muted)]">{f.vehicle.brand} {f.vehicle.model}</span></span>
+        : <span className="text-[var(--subtle)]">—</span>,
+    },
+    {
+      key: 'vence',
+      header: 'Vence',
+      sortValue: (f) => new Date(f.dueAt).getTime(),
+      cell: (f) => (
+        <div>
+          <p className="text-[12.5px]">{formatDate(f.dueAt)}</p>
+          <p className={`text-[11px] ${overdue(f) ? 'font-semibold text-[var(--falla)]' : 'text-[var(--muted)]'}`}>{relativeTime(f.dueAt)}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'estado',
+      header: 'Estado',
+      sortValue: (f) => f.status,
+      cell: (f) => (
+        <div className="space-y-1">
+          {f.status === 'PENDIENTE'
+            ? <Badge tone={overdue(f) ? 'danger' : 'info'}>{overdue(f) ? 'Vencido' : 'Pendiente'}</Badge>
+            : <Badge tone={f.status === 'HECHO' ? 'success' : 'neutral'}>{f.status === 'HECHO' ? 'Hecho' : 'Descartado'}</Badge>}
+          {f.rating && (
+            <div className="flex items-center gap-0.5 text-[var(--warn)]">
+              {Array.from({ length: f.rating }).map((_, i) => <Star key={i} className="size-3 fill-current" aria-hidden />)}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'accion',
+      header: '',
+      width: '104px',
+      align: 'right',
+      cell: (f) => can('followup:write') && f.status === 'PENDIENTE' ? (
+        <Button size="sm" variant="secondary" onClick={() => setClosing(f)} tip="Registrar cómo salió el contacto">
+          <Check className="size-3.5" aria-hidden /> Registrar
+        </Button>
+      ) : null,
+    },
+  ];
+
   return (
     <>
       <Topbar
@@ -154,65 +237,38 @@ export default function PostventaPage() {
 
         <Card>
           <CardBody className="p-0">
-            {loading && !data ? (
-              <div className="space-y-2 p-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
-            ) : (data?.rows.length ?? 0) === 0 ? (
-              <EmptyState
-                icon={<PhoneCall className="size-8" aria-hidden />}
-                title={status === 'PENDIENTE' ? 'No hay nada pendiente' : 'Sin seguimientos con ese filtro'}
-                description="Al entregar un vehículo se agendan solos el llamado de satisfacción y el recordatorio del próximo service. También podés agendar uno a mano."
-                action={can('followup:write') ? (
-                  <Button size="sm" onClick={() => setCreating(true)}>
-                    <Plus className="size-4" aria-hidden /> Agendar un seguimiento
-                  </Button>
-                ) : undefined}
-              />
-            ) : (
-              <Table>
-                <thead>
-                  <tr><Th>Tipo</Th><Th>Cliente</Th><Th>Vehículo</Th><Th>Vence</Th><Th>Estado</Th><Th /></tr>
-                </thead>
-                <tbody>
-                  {data!.rows.map((f) => (
-                    <tr key={f.id}>
-                      <Td>
-                        <span className="font-medium">{FOLLOWUP_LABELS[f.kind]}</span>
-                        {f.workOrder && (
-                          <div className="text-[11.5px]">
-                            <Link href={`/ordenes/${f.workOrder.id}`} className="focus-ring rounded text-[var(--brand)] hover:underline">{f.workOrder.number}</Link>
-                          </div>
-                        )}
-                        {f.notes && <div className="max-w-xs truncate text-[11.5px] text-[var(--muted)]">{f.notes}</div>}
-                      </Td>
-                      <Td className="text-[13px]">
-                        {f.customer ? customerName(f.customer) : '—'}
-                        <div className="text-[11.5px] text-[var(--muted)]">{f.customer?.phone ?? ''}</div>
-                      </Td>
-                      <Td className="mono text-[13px]">{f.vehicle?.plate ?? '—'}</Td>
-                      <Td className="text-[13px]">
-                        {formatDate(f.dueAt)}
-                        <div className={`text-[11.5px] ${overdue(f) ? 'text-[var(--falla)]' : 'text-[var(--muted)]'}`}>{relativeTime(f.dueAt)}</div>
-                      </Td>
-                      <Td>
-                        {f.status === 'PENDIENTE'
-                          ? <Badge tone={overdue(f) ? 'danger' : 'info'}>{overdue(f) ? 'Vencido' : 'Pendiente'}</Badge>
-                          : <Badge tone={f.status === 'HECHO' ? 'success' : 'neutral'}>{f.status === 'HECHO' ? 'Hecho' : 'Descartado'}</Badge>}
-                        {f.rating && (
-                          <div className="mt-0.5 flex items-center gap-0.5 text-[var(--warn)]">
-                            {Array.from({ length: f.rating }).map((_, i) => <Star key={i} className="size-3 fill-current" aria-hidden />)}
-                          </div>
-                        )}
-                      </Td>
-                      <Td className="text-right">
-                        {can('followup:write') && f.status === 'PENDIENTE' && (
-                          <Button size="sm" variant="secondary" onClick={() => setClosing(f)}>Registrar</Button>
-                        )}
-                      </Td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            )}
+            <DataTable
+              id="postventa"
+              rows={data?.rows}
+              loading={loading}
+              getKey={(f) => f.id}
+              columns={columns}
+              zebra
+              initialSort={{ key: 'vence', dir: 'asc' }}
+              emptyIcon={<PhoneCall className="size-6" aria-hidden />}
+              emptyTitle={status === 'PENDIENTE' ? 'No hay nada pendiente' : 'Sin seguimientos con ese filtro'}
+              emptyDescription="Al entregar un vehículo se agendan solos el llamado de satisfacción y el recordatorio del próximo service. También podés agendar uno a mano."
+              emptyAction={can('followup:write') ? (
+                <Button size="sm" onClick={() => setCreating(true)}>
+                  <Plus className="size-4" aria-hidden /> Agendar un seguimiento
+                </Button>
+              ) : undefined}
+              toolbar={
+                <>
+                  <Select aria-label="Estado" icon={<Filter className="size-3.5" aria-hidden />} value={status} onChange={(e) => setStatus(e.target.value)} className="!w-44">
+                    <option value="PENDIENTE">Pendientes</option>
+                    <option value="HECHO">Hechos</option>
+                    <option value="DESCARTADO">Descartados</option>
+                    <option value="TODOS">Todos</option>
+                  </Select>
+                  <Select aria-label="Tipo" icon={<Tag className="size-3.5" aria-hidden />} value={kind} onChange={(e) => setKind(e.target.value)} className="!w-56">
+                    <option value="">Todos los tipos</option>
+                    {FOLLOWUP_KINDS.map((k) => <option key={k} value={k}>{FOLLOWUP_LABELS[k]}</option>)}
+                  </Select>
+                </>
+              }
+              footer={<span>{data?.total ?? 0} seguimientos</span>}
+            />
           </CardBody>
         </Card>
       </div>

@@ -79,6 +79,7 @@ export async function buildQuotePdf(quoteId: string, tenantId: string): Promise<
     },
     workOrder: {
       number: wo.number,
+      auditId: wo.auditId,
       complaint: wo.complaint,
       diagnosis: wo.diagnosis,
       receivedAt: wo.receivedAt,

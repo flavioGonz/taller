@@ -3,7 +3,8 @@
 import { useState, type FormEvent } from 'react';
 import { Plus, Search, X, ArrowDownToLine, ArrowUpFromLine, Hash, Tag, Factory, Layers, Coins, DollarSign, TriangleAlert, StickyNote, Package } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
-import { Button, Card, CardBody, CardHeader, CardTitle, Input, Select, Skeleton, EmptyState, Table, Th, Td, Badge } from '@/components/ui';
+import { Button, Card, CardBody, CardHeader, CardTitle, Input, Select, Badge, Stat } from '@/components/ui';
+import { DataTable, type Column } from '@/components/data-table';
 import { useApi } from '@/hooks/use-api';
 import { useSocketEvent } from '@/hooks/use-socket';
 import { api, qs } from '@/lib/api';
@@ -57,6 +58,113 @@ export default function InventarioPage() {
     refetch();
   }
 
+  const rowsNow = data?.rows ?? [];
+  const bajos = rowsNow.filter((p) => p.isLow).length;
+  const unidades = rowsNow.reduce((a, p) => a + p.onHand, 0);
+  const valorizado = rowsNow.reduce((a, p) => a + p.onHand * Number(p.cost), 0);
+
+  const columns: Column<Part>[] = [
+    {
+      key: 'foto',
+      header: '',
+      width: '56px',
+      cell: (p) => (
+        <ImagePicker
+          value={p.imageUrl}
+          size={40}
+          label="Foto del repuesto"
+          disabled={!can('inventory:write')}
+          fallback={<Package className="size-1/2" aria-hidden />}
+          onChange={(url) => void api.patch(`/inventory/parts/${p.id}`, { imageUrl: url ?? '' }).then(() => refetch())}
+        />
+      ),
+    },
+    {
+      key: 'repuesto',
+      header: 'Repuesto',
+      sortValue: (p) => p.name,
+      cell: (p) => (
+        <div className="min-w-0">
+          <p className="truncate text-[13.5px] font-semibold">{p.name}</p>
+          <p className="mono truncate text-[11.5px] text-[var(--muted)]">
+            {p.sku}{[p.brand, p.category].filter(Boolean).length ? ` · ${[p.brand, p.category].filter(Boolean).join(' · ')}` : ''}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: 'proveedor',
+      header: 'Proveedor',
+      hideBelow: 'xl',
+      sortValue: (p) => p.supplier?.name ?? '',
+      cell: (p) => <span className="text-[12.5px] text-[var(--muted)]">{p.supplier?.name ?? '—'}</span>,
+    },
+    {
+      key: 'stock',
+      header: 'Stock',
+      align: 'right',
+      tip: 'Unidades disponibles; en rojo cuando está por debajo del mínimo',
+      sortValue: (p) => p.onHand,
+      cell: (p) => (
+        <Badge tone={p.isLow ? 'danger' : 'success'}>
+          {p.onHand}{p.isLow ? ` · mín ${Number(p.minStock)}` : ''}
+        </Badge>
+      ),
+    },
+    {
+      key: 'costo',
+      header: 'Costo',
+      align: 'right',
+      hideBelow: 'md',
+      sortValue: (p) => Number(p.cost),
+      cell: (p) => <span className="mono text-[12.5px] text-[var(--muted)]">{formatMoney(p.cost)}</span>,
+    },
+    {
+      key: 'precio',
+      header: 'Precio',
+      align: 'right',
+      sortValue: (p) => Number(p.price),
+      cell: (p) => (
+        <div>
+          <p className="mono text-[13px] font-semibold">{formatMoney(p.price)}</p>
+          {Number(p.cost) > 0 && (
+            <p className="mono text-[10.5px] text-[var(--muted)]">
+              +{Math.round(((Number(p.price) - Number(p.cost)) / Number(p.cost)) * 100)}%
+            </p>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'acciones',
+      header: '',
+      width: '86px',
+      align: 'right',
+      cell: (p) => can('inventory:write') ? (
+        <span className="flex justify-end gap-1">
+          <button
+            onClick={() => setMove({ part: p, type: 'ENTRADA' })}
+            className="focus-ring rounded-lg p-1.5 text-[var(--ok)] hover:bg-[var(--ok-bg)]"
+            aria-label={`Ingresar stock de ${p.name}`}
+            data-tooltip-id="ts-tip"
+            data-tooltip-content="Ingreso de stock"
+          >
+            <ArrowDownToLine className="size-4" aria-hidden />
+          </button>
+          <button
+            onClick={() => setMove({ part: p, type: 'SALIDA' })}
+            className="focus-ring rounded-lg p-1.5 text-[var(--warn)] hover:bg-[var(--warn-bg)]"
+            aria-label={`Egresar stock de ${p.name}`}
+            data-tooltip-id="ts-tip"
+            data-tooltip-content="Egreso de stock"
+          >
+            <ArrowUpFromLine className="size-4" aria-hidden />
+          </button>
+        </span>
+      ) : null,
+    },
+  ];
+
   return (
     <>
       <Topbar title="Inventario" actions={can('inventory:write') ? <Button size="sm" onClick={() => setOpen((o) => !o)}>{open ? <X className="size-4" aria-hidden /> : <Plus className="size-4" aria-hidden />}{open ? 'Cerrar' : 'Nuevo repuesto'}</Button> : undefined} />
@@ -108,61 +216,61 @@ export default function InventarioPage() {
           </Card>
         )}
 
-        <Card>
-          <CardBody className="flex flex-wrap items-end gap-4">
-            <div className="relative min-w-[240px] flex-1">
-              <Search className="pointer-events-none absolute left-3 top-[34px] size-4 text-[var(--text-muted)]" aria-hidden />
-              <Input label="Buscar" name="q" className="pl-9" placeholder="SKU, nombre, marca o código de barras" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
-            </div>
-            <label className="flex items-center gap-2 pb-2.5 text-xs">
-              <input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} className="focus-ring size-4 rounded" />
-              Sólo stock bajo
-            </label>
-          </CardBody>
-        </Card>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Stat icon={<Package className="size-4" aria-hidden />} label="Repuestos en catálogo" value={String(data?.total ?? 0)} />
+          <Stat icon={<TriangleAlert className="size-4" aria-hidden />} label="Con stock bajo" value={String(bajos)} hint="Por debajo del mínimo" tone={bajos > 0 ? 'danger' : 'ok'} />
+          <Stat icon={<Layers className="size-4" aria-hidden />} label="Unidades en depósito" value={String(unidades)} />
+          <Stat icon={<Coins className="size-4" aria-hidden />} label="Valorizado al costo" value={formatMoney(valorizado)} hint="Stock actual × costo" />
+        </div>
 
         <Card>
           <CardBody className="p-0">
-            {loading && !data ? (
-              <div className="space-y-2 p-4">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
-            ) : (data?.rows.length ?? 0) === 0 ? (
-              <EmptyState title="Inventario vacío" description="Cargá repuestos para poder consumirlos desde las órdenes de trabajo." />
-            ) : (
-              <Table>
-                <thead><tr><Th className="w-14"><span className="sr-only">Foto</span></Th><Th>SKU</Th><Th>Repuesto</Th><Th className="text-right">Stock</Th><Th className="text-right">Costo</Th><Th className="text-right">Precio</Th><Th className="w-28" /></tr></thead>
-                <tbody>
-                  {data!.rows.map((p) => (
-                    <tr key={p.id} className="transition-colors hover:bg-[var(--surface-2)]">
-                      <Td>
-                        <ImagePicker
-                          value={p.imageUrl}
-                          size={40}
-                          label="Foto del repuesto"
-                          disabled={!can('inventory:write')}
-                          fallback={<Package className="size-1/2" aria-hidden />}
-                          onChange={(url) => void api.patch(`/inventory/parts/${p.id}`, { imageUrl: url ?? '' }).then(() => refetch())}
-                        />
-                      </Td>
-                      <Td className="font-mono text-xs">{p.sku}</Td>
-                      <Td>{p.name}<div className="text-[11px] text-[var(--text-muted)]">{[p.brand, p.category].filter(Boolean).join(' · ')}</div></Td>
-                      <Td className="text-right">
-                        <Badge tone={p.isLow ? 'danger' : 'success'}>{p.onHand} {p.isLow ? `· mín ${Number(p.minStock)}` : ''}</Badge>
-                      </Td>
-                      <Td className="text-right tabular-nums">{formatMoney(p.cost)}</Td>
-                      <Td className="text-right tabular-nums">{formatMoney(p.price)}</Td>
-                      <Td>
-                        {can('inventory:write') && (
-                          <div className="flex justify-end gap-1">
-                            <button onClick={() => setMove({ part: p, type: 'ENTRADA' })} className="focus-ring rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-500/10" aria-label={`Ingresar stock de ${p.name}`} title="Ingreso"><ArrowDownToLine className="size-4" aria-hidden /></button>
-                            <button onClick={() => setMove({ part: p, type: 'SALIDA' })} className="focus-ring rounded-lg p-1.5 text-amber-600 hover:bg-amber-500/10" aria-label={`Egresar stock de ${p.name}`} title="Egreso"><ArrowUpFromLine className="size-4" aria-hidden /></button>
-                          </div>
-                        )}
-                      </Td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            )}
+            <DataTable
+              id="inventario"
+              rows={data?.rows}
+              loading={loading}
+              getKey={(p) => p.id}
+              columns={columns}
+              zebra
+              initialSort={{ key: 'repuesto', dir: 'asc' }}
+              emptyIcon={<Package className="size-6" aria-hidden />}
+              emptyTitle={q ? 'Ningún repuesto coincide' : 'Inventario vacío'}
+              emptyDescription="Cargá repuestos para poder consumirlos desde las órdenes de trabajo."
+              emptyAction={can('inventory:write') ? (
+                <Button size="sm" onClick={() => setOpen(true)}><Plus className="size-4" aria-hidden /> Nuevo repuesto</Button>
+              ) : undefined}
+              toolbar={
+                <>
+                  <Input
+                    aria-label="Buscar repuesto"
+                    icon={<Search className="size-3.5" aria-hidden />}
+                    placeholder="SKU, nombre, marca o código de barras"
+                    value={q}
+                    onChange={(e) => { setQ(e.target.value); setPage(1); }}
+                    className="!w-full sm:!w-80"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { setLowOnly((v) => !v); setPage(1); }}
+                    aria-pressed={lowOnly}
+                    data-tooltip-id="ts-tip"
+                    data-tooltip-content="Mostrar sólo lo que está por debajo del stock mínimo"
+                    className={`focus-ring inline-flex h-8 items-center gap-1.5 rounded-[var(--r-sm)] border px-2.5 text-[13px] font-medium transition ${lowOnly ? 'border-[var(--falla-bd)] bg-[var(--falla-bg)] text-[var(--falla)]' : 'border-[var(--border)] text-[var(--muted)] hover:border-[var(--brand)] hover:text-[var(--brand)]'}`}
+                  >
+                    <TriangleAlert className="size-3.5" aria-hidden /> Stock bajo
+                  </button>
+                </>
+              }
+              footer={
+                <>
+                  <span>{data?.total ?? 0} repuestos · página {data?.page ?? 1} de {data?.pages ?? 1}</span>
+                  <span className="flex gap-2">
+                    <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Anterior</Button>
+                    <Button variant="secondary" size="sm" disabled={page >= (data?.pages ?? 1)} onClick={() => setPage((p) => p + 1)}>Siguiente</Button>
+                  </span>
+                </>
+              }
+            />
           </CardBody>
         </Card>
       </div>

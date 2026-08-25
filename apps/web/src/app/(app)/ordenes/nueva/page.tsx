@@ -56,10 +56,12 @@ export default function NuevaOrdenPage() {
     if (prefilled.data?.customerId) setCustomerId(prefilled.data.customerId);
   }, [prefilled.data]);
 
-  // Se puede llegar desde la ficha del cliente con el cliente ya elegido
+  // Se puede llegar desde la ficha del cliente o desde Ingresos con parte ya elegida
   useEffect(() => {
     const fromQuery = search.get('customerId');
     if (fromQuery) setCustomerId(fromQuery);
+    const k = search.get('kind') as WorkOrderKind | null;
+    if (k && WORKORDER_KINDS.includes(k)) setKind(k);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

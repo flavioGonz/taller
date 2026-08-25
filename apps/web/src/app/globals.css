@@ -108,6 +108,28 @@ body, .ts-side, .ts-card, .ts-btn, .ts-badge, .ts-input, .ts-topbar, .ts-nav-ite
 .ts-nav-item svg { color: var(--subtle); flex: none; }
 .ts-nav-item[aria-current="page"]:hover { background: var(--brand-soft); color: var(--brand-700); }
 
+/* Sub-ítems de un grupo desplegable del menú (Ingresos) */
+.ts-nav-sub {
+  display: flex; align-items: center; gap: 9px;
+  margin-left: 21px; padding: 7px 10px 7px 12px;
+  border-left: 2px solid var(--border);
+  border-radius: 0 9px 9px 0;
+  color: var(--muted); font-size: 13px; font-weight: 500;
+  transition: background .16s ease, color .16s ease, border-color .16s ease;
+}
+.ts-nav-sub:hover { background: var(--surface-2); color: var(--text); border-left-color: var(--border-strong); }
+.ts-nav-sub[aria-current="page"] {
+  background: var(--brand-soft); color: var(--brand-700); font-weight: 600;
+  border-left-color: var(--brand-600);
+}
+.ts-nav-count {
+  margin-left: auto; min-width: 20px; text-align: center;
+  border-radius: 999px; background: var(--surface-2); color: var(--muted);
+  font-size: 10.5px; font-weight: 700; padding: 1px 6px;
+  font-variant-numeric: tabular-nums;
+}
+.ts-nav-sub[aria-current="page"] .ts-nav-count { background: var(--surface); color: var(--brand-700); }
+
 .ts-topbar {
   background: color-mix(in srgb, var(--surface) 88%, transparent);
   border-bottom: 1px solid var(--border);
@@ -201,15 +223,55 @@ textarea.ts-input { min-height: 78px; resize: vertical; }
 .ts-chip[aria-pressed="true"] { background: var(--brand-soft); color: var(--brand-700); border-color: var(--brand-200); }
 
 /* ------------------------------------------------------------------ tablas */
-.ts-table { width: 100%; font-size: 14px; border-collapse: collapse; }
+.ts-table { width: 100%; font-size: 14px; border-collapse: separate; border-spacing: 0; }
 .ts-table th {
   text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em;
-  color: var(--subtle); font-weight: 700; padding: 11px 16px;
+  color: var(--subtle); font-weight: 700; padding: 11px 16px; white-space: nowrap;
   background: var(--surface-2); border-bottom: 1px solid var(--border);
 }
 .ts-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .ts-table tbody tr:last-child td { border-bottom: 0; }
 .ts-table tbody tr:hover td { background: var(--surface-2); }
+
+/* ---------------------------------------------------------------- DataTable */
+.ts-dt { width: 100%; font-size: 13.5px; border-collapse: separate; border-spacing: 0; }
+.ts-dt thead th {
+  position: sticky; top: 0; z-index: 2;
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--subtle); font-weight: 700; white-space: nowrap;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 14px;
+}
+.ts-dt thead th:first-child { border-top-left-radius: var(--r); }
+.ts-dt thead th:last-child  { border-top-right-radius: var(--r); }
+.ts-dt td {
+  padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle;
+}
+.ts-dt.cozy td   { padding: 14px; }
+.ts-dt.compact td { padding: 7px 14px; font-size: 13px; }
+.ts-dt tbody tr { transition: background .14s ease, box-shadow .14s ease; }
+.ts-dt tbody tr:hover td { background: var(--surface-2); }
+.ts-dt tbody tr[data-clickable="true"] { cursor: pointer; }
+.ts-dt tbody tr[data-clickable="true"]:hover td { background: var(--brand-soft); }
+.ts-dt tbody tr:last-child td { border-bottom: 0; }
+.ts-dt tbody tr[data-zebra="true"] td { background: color-mix(in srgb, var(--surface-2) 45%, transparent); }
+.ts-dt th[aria-sort] { cursor: pointer; user-select: none; }
+.ts-dt th[aria-sort]:hover { color: var(--text); }
+.ts-dt th[aria-sort="ascending"], .ts-dt th[aria-sort="descending"] { color: var(--brand-700); }
+.ts-dt-wrap { max-height: var(--dt-max, none); overflow: auto; border-radius: var(--r); }
+
+/* ------------------------------------------------------------------- Tabs */
+.ts-tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 4px; border-radius: var(--r); background: var(--surface-2); border: 1px solid var(--border); }
+.ts-tab {
+  position: relative; display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 13px; border-radius: var(--r-sm); font-size: 13px; font-weight: 600;
+  color: var(--muted); white-space: nowrap; transition: color .16s ease;
+}
+.ts-tab:hover { color: var(--text); }
+.ts-tab[aria-selected="true"] { color: var(--brand-700); }
+.ts-tab-ink { position: absolute; inset: 0; border-radius: var(--r-sm); background: var(--surface); box-shadow: var(--sh-xs); z-index: 0; }
+.ts-tab > * { position: relative; z-index: 1; }
 
 /* --------------------------------------------------------- encabezado de página */
 .ts-page-title { font-size: 22px; font-weight: 800; letter-spacing: -.02em; }

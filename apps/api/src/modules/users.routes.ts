@@ -4,7 +4,7 @@ import { createUserSchema, updateUserSchema, paginationSchema, idParamSchema, AS
 import { prisma } from '../lib/prisma.js';
 import { hashPassword } from '../lib/password.js';
 import { skipTake, toPaginated } from '../lib/pagination.js';
-import { conflict, forbidden, notFound } from '../lib/errors.js';
+import { badRequest, conflict, forbidden, notFound } from '../lib/errors.js';
 
 const SAFE = {
   id: true, email: true, firstName: true, lastName: true, phone: true, role: true,
@@ -91,6 +91,58 @@ export default async function userRoutes(app: FastifyInstance) {
 
   // Bahías del taller (config operativa, vive con usuarios/ajustes)
   app.get('/bays', { preHandler: [app.authorize('user:read')] }, async (req) =>
-    prisma.bay.findMany({ where: { tenantId: req.scope() }, orderBy: { name: 'asc' } }),
+    prisma.bay.findMany({
+      where: { tenantId: req.scope() },
+      orderBy: { name: 'asc' },
+      include: { _count: { select: { workOrders: true } } },
+    }),
+  );
+
+  app.post('/bays', { preHandler: [app.authorize('tenant:write')] }, async (req, reply) => {
+    const tenantId = req.scope();
+    const body = (req.body ?? {}) as { name?: string; kind?: string };
+    const name = (body.name ?? '').trim();
+    if (!name) throw badRequest('Poné un nombre a la bahía');
+    const exists = await prisma.bay.findFirst({ where: { tenantId, name }, select: { id: true } });
+    if (exists) throw conflict('Ya existe una bahía con ese nombre');
+    reply.code(201);
+    return prisma.bay.create({ data: { tenantId, name, kind: body.kind?.trim() || null } });
+  });
+
+  app.patch('/bays/:id', { preHandler: [app.authorize('tenant:write')] }, async (req) => {
+    const { id } = idParamSchema.parse(req.params);
+    const tenantId = req.scope();
+    const body = (req.body ?? {}) as { name?: string; kind?: string; isActive?: boolean };
+    const found = await prisma.bay.findFirst({ where: { id, tenantId }, select: { id: true } });
+    if (!found) throw notFound('Bahía no encontrada');
+    return prisma.bay.update({
+      where: { id },
+      data: {
+        ...(body.name !== undefined ? { name: body.name.trim() } : {}),
+        ...(body.kind !== undefined ? { kind: body.kind.trim() || null } : {}),
+        ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
+      },
+    });
+  });
+
+  app.delete('/bays/:id', { preHandler: [app.authorize('tenant:write')] }, async (req) => {
+    const { id } = idParamSchema.parse(req.params);
+    const tenantId = req.scope();
+    const bay = await prisma.bay.findFirst({
+      where: { id, tenantId },
+      select: { id: true, _count: { select: { workOrders: true } } },
+    });
+    if (!bay) throw notFound('Bahía no encontrada');
+    if (bay._count.workOrders > 0) {
+      // Con historial no se borra: se desactiva para que no se pueda asignar más
+      return prisma.bay.update({ where: { id }, data: { isActive: false } });
+    }
+    await prisma.bay.delete({ where: { id } });
+    return { ok: true };
+  });
+
+  // Numeración de documentos: en qué va cada contador del taller
+  app.get('/counters', { preHandler: [app.authorize('tenant:write')] }, async (req) =>
+    prisma.counter.findMany({ where: { tenantId: req.scope() }, orderBy: [{ key: 'asc' }, { period: 'desc' }] }),
   );
 }

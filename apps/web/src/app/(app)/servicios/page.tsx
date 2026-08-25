@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { Plus, Pencil, Trash2, Wrench } from 'lucide-react';
+import { Plus, Pencil, Trash2, Wrench, Search, Timer, Coins, Tag } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
-import { Button, Card, CardBody, Skeleton, EmptyState, Table, Th, Td } from '@/components/ui';
+import { Button, Card, CardBody, Badge, Input } from '@/components/ui';
+import { DataTable, type Column } from '@/components/data-table';
 import { Modal, ConfirmDialog } from '@/components/modal';
 import { RowMenu } from '@/components/row-menu';
 import { ServiceForm, type ServiceRecord } from '@/components/forms/service-form';
@@ -17,6 +18,7 @@ interface Service extends ServiceRecord { id: string; name: string; price: strin
 export default function ServiciosPage() {
   const { can } = useAuth();
   const [creating, setCreating] = useState(false);
+  const [q, setQ] = useState('');
   const [editing, setEditing] = useState<Service | null>(null);
   const [removing, setRemoving] = useState<Service | null>(null);
   const [busy, setBusy] = useState(false);
@@ -34,6 +36,71 @@ export default function ServiciosPage() {
     }
   }
 
+  const filtrados = (data?.rows ?? []).filter((s) => {
+    if (!q) return true;
+    const t = q.toLowerCase();
+    return s.name.toLowerCase().includes(t)
+      || (s.code ?? '').toLowerCase().includes(t)
+      || (s.category ?? '').toLowerCase().includes(t);
+  });
+
+  const columns: Column<Service>[] = [
+    {
+      key: 'servicio',
+      header: 'Servicio',
+      sortValue: (s) => s.name,
+      cell: (s) => (
+        <div className="min-w-0">
+          <p className="truncate text-[13.5px] font-semibold">{s.name}</p>
+          {s.code && <p className="mono text-[11.5px] text-[var(--muted)]">{s.code}</p>}
+        </div>
+      ),
+    },
+    {
+      key: 'categoria',
+      header: 'Categoría',
+      hideBelow: 'sm',
+      sortValue: (s) => s.category ?? '',
+      cell: (s) => s.category
+        ? <Badge tone="neutral"><Tag className="size-3" aria-hidden /> {s.category}</Badge>
+        : <span className="text-[var(--subtle)]">—</span>,
+    },
+    {
+      key: 'horas',
+      header: 'Horas',
+      align: 'right',
+      tip: 'Tiempo estimado de mano de obra',
+      sortValue: (s) => Number(s.estimatedHours ?? 0),
+      cell: (s) => (
+        <span className="mono inline-flex items-center gap-1 text-[12.5px]">
+          {s.estimatedHours ? <><Timer className="size-3.5 text-[var(--subtle)]" aria-hidden />{Number(s.estimatedHours)}</> : <span className="text-[var(--subtle)]">—</span>}
+        </span>
+      ),
+    },
+    {
+      key: 'precio',
+      header: 'Precio',
+      align: 'right',
+      sortValue: (s) => Number(s.price),
+      cell: (s) => <span className="mono text-[13px] font-semibold">{formatMoney(s.price)}</span>,
+    },
+    {
+      key: 'acciones',
+      header: '',
+      width: '48px',
+      align: 'right',
+      cell: (s) => can('service:write') ? (
+        <RowMenu
+          label={`Acciones de ${s.name}`}
+          actions={[
+            { label: 'Editar', icon: <Pencil className="size-3.5" aria-hidden />, onClick: () => setEditing(s) },
+            { label: 'Dar de baja', icon: <Trash2 className="size-3.5" aria-hidden />, danger: true, onClick: () => setRemoving(s) },
+          ]}
+        />
+      ) : null,
+    },
+  ];
+
   return (
     <>
       <Topbar
@@ -45,38 +112,35 @@ export default function ServiciosPage() {
         ) : undefined}
       />
 
-      <div className="space-y-4 p-6">
+      <div className="p-6">
         <Card>
           <CardBody className="p-0">
-            {loading && !data ? (
-              <div className="space-y-2 p-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
-            ) : (data?.rows.length ?? 0) === 0 ? (
-              <EmptyState icon={<Wrench className="size-8" aria-hidden />} title="Sin servicios cargados" description="El catálogo acelera la carga de ítems en cada OT." />
-            ) : (
-              <Table>
-                <thead><tr><Th>Código</Th><Th>Servicio</Th><Th>Categoría</Th><Th className="text-right">Horas</Th><Th className="text-right">Precio</Th><Th className="w-10" /></tr></thead>
-                <tbody>
-                  {data!.rows.map((s) => (
-                    <tr key={s.id} className="transition-colors hover:bg-[var(--surface-2)]">
-                      <Td className="font-mono text-xs">{s.code ?? '—'}</Td>
-                      <Td>{s.name}</Td>
-                      <Td className="text-xs text-[var(--text-muted)]">{s.category ?? '—'}</Td>
-                      <Td className="mono text-right">{s.estimatedHours ? Number(s.estimatedHours) : '—'}</Td>
-                      <Td className="mono text-right">{formatMoney(s.price)}</Td>
-                      <Td>
-                        <RowMenu
-                          label={`Acciones de ${s.name}`}
-                          actions={[
-                            { label: 'Editar', icon: <Pencil className="size-3.5" aria-hidden />, onClick: () => setEditing(s), hidden: !can('service:write') },
-                            { label: 'Dar de baja', icon: <Trash2 className="size-3.5" aria-hidden />, danger: true, onClick: () => setRemoving(s), hidden: !can('service:write') },
-                          ]}
-                        />
-                      </Td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            )}
+            <DataTable
+              id="servicios"
+              rows={filtrados}
+              loading={loading && !data}
+              getKey={(s) => s.id}
+              columns={columns}
+              zebra
+              initialSort={{ key: 'servicio', dir: 'asc' }}
+              emptyIcon={<Wrench className="size-6" aria-hidden />}
+              emptyTitle={q ? 'Ningún servicio coincide' : 'Sin servicios cargados'}
+              emptyDescription="El catálogo acelera la carga de ítems en cada OT y en el presupuesto."
+              emptyAction={can('service:write') ? (
+                <Button size="sm" onClick={() => setCreating(true)}><Plus className="size-4" aria-hidden /> Nuevo servicio</Button>
+              ) : undefined}
+              toolbar={
+                <Input
+                  aria-label="Buscar servicio"
+                  icon={<Search className="size-3.5" aria-hidden />}
+                  placeholder="Nombre, código o categoría"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  className="!w-full sm:!w-80"
+                />
+              }
+              footer={<span>{filtrados.length} servicios en el catálogo</span>}
+            />
           </CardBody>
         </Card>
       </div>

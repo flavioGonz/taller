@@ -2,9 +2,10 @@
 
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { Truck, Plus, X, PackageCheck, Factory, ClipboardList, CalendarDays, Hash, StickyNote, Layers, Coins } from 'lucide-react';
+import { Truck, Plus, X, PackageCheck, Factory, ClipboardList, CalendarDays, Hash, StickyNote, Layers, Coins, Package } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
-import { Button, Card, CardBody, CardHeader, CardTitle, Input, Select, Textarea, Skeleton, EmptyState, Table, Th, Td, Badge } from '@/components/ui';
+import { Button, Card, CardBody, CardHeader, CardTitle, Input, Select, Textarea, Skeleton, Badge, Table, Th, Td } from '@/components/ui';
+import { DataTable, type Column } from '@/components/data-table';
 import { useApi } from '@/hooks/use-api';
 import { useSocketEvent } from '@/hooks/use-socket';
 import { api, qs } from '@/lib/api';
@@ -73,6 +74,86 @@ export default function PedidosPage() {
     setReceiving(null);
     refetch();
   }
+
+  const columns: Column<Order>[] = [
+    {
+      key: 'pedido',
+      header: 'Pedido',
+      sortValue: (o) => o.number,
+      cell: (o) => (
+        <div className="min-w-0">
+          <p className="mono text-[13px] font-bold">{o.number}</p>
+          <p className="text-[11.5px] text-[var(--muted)]">
+            {o.expectedAt ? `Llega ${formatDate(o.expectedAt)}` : 'Sin fecha de llegada'}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: 'proveedor',
+      header: 'Proveedor',
+      sortValue: (o) => o.supplier?.name ?? '',
+      cell: (o) => (
+        <span className="flex items-center gap-1.5 text-[13px]">
+          <Factory className="size-3.5 shrink-0 text-[var(--subtle)]" aria-hidden />
+          {o.supplier?.name ?? <span className="text-[var(--subtle)]">sin proveedor</span>}
+        </span>
+      ),
+    },
+    {
+      key: 'ot',
+      header: 'OT / vehículo',
+      hideBelow: 'md',
+      sortValue: (o) => o.workOrder?.number ?? '',
+      cell: (o) => o.workOrder ? (
+        <Link href={`/ordenes/${o.workOrder.id}`} className="focus-ring block rounded">
+          <span className="mono text-[12.5px] hover:text-[var(--brand)]">{o.workOrder.number}</span>
+          <span className="mono block text-[11.5px] text-[var(--muted)]">{o.workOrder.vehicle.plate}</span>
+        </Link>
+      ) : <span className="text-[var(--subtle)]">stock</span>,
+    },
+    {
+      key: 'items',
+      header: 'Ítems',
+      align: 'right',
+      tip: 'Cuántas líneas tiene el pedido y cuántas llegaron',
+      sortValue: (o) => o.items.length,
+      cell: (o) => {
+        const recibidos = o.items.reduce((a, i) => a + Number(i.received), 0);
+        const pedidos = o.items.reduce((a, i) => a + Number(i.quantity), 0);
+        return (
+          <span className="mono inline-flex items-center gap-1 text-[12.5px]">
+            <Package className="size-3.5 text-[var(--subtle)]" aria-hidden />
+            {recibidos}/{pedidos}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'estado',
+      header: 'Estado',
+      sortValue: (o) => PARTS_ORDER_LABELS[o.status],
+      cell: (o) => <Badge tone={TONE[o.status]}>{PARTS_ORDER_LABELS[o.status]}</Badge>,
+    },
+    {
+      key: 'total',
+      header: 'Total',
+      align: 'right',
+      sortValue: (o) => Number(o.total),
+      cell: (o) => <span className="mono text-[13px] font-semibold">{formatMoney(o.total)}</span>,
+    },
+    {
+      key: 'accion',
+      header: '',
+      width: '92px',
+      align: 'right',
+      cell: (o) => can('partsorder:write') && o.status !== 'RECIBIDO' && o.status !== 'CANCELADO' ? (
+        <Button size="sm" variant="secondary" onClick={() => setReceiving(o)} tip="Registrar la mercadería que llegó">
+          <PackageCheck className="size-3.5" aria-hidden /> Recibir
+        </Button>
+      ) : null,
+    },
+  ];
 
   return (
     <>
@@ -191,51 +272,18 @@ export default function PedidosPage() {
 
         <Card>
           <CardBody className="p-0">
-            {loading && !data ? (
-              <div className="space-y-2 p-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
-            ) : (data?.rows.length ?? 0) === 0 ? (
-              <EmptyState icon={<Truck className="size-8" aria-hidden />} title="Sin pedidos" description="Cuando una OT queda esperando repuestos, el pedido al proveedor se registra acá." />
-            ) : (
-              <Table>
-                <thead>
-                  <tr><Th>Pedido</Th><Th>Proveedor</Th><Th>OT</Th><Th>Ítems</Th><Th>Estado</Th><Th className="text-right">Total</Th><Th /></tr>
-                </thead>
-                <tbody>
-                  {data!.rows.map((o) => (
-                    <tr key={o.id}>
-                      <Td>
-                        <span className="font-semibold">{o.number}</span>
-                        <div className="text-[11.5px] text-[var(--muted)]">
-                          {o.expectedAt ? `Llega ${formatDate(o.expectedAt)}` : 'Sin fecha'}
-                        </div>
-                      </Td>
-                      <Td className="text-[13px]">{o.supplier?.name ?? '—'}</Td>
-                      <Td className="text-[13px]">
-                        {o.workOrder ? (
-                          <Link href={`/ordenes/${o.workOrder.id}`} className="focus-ring rounded hover:underline">
-                            {o.workOrder.number}
-                            <div className="mono text-[11.5px] text-[var(--muted)]">{o.workOrder.vehicle.plate}</div>
-                          </Link>
-                        ) : '—'}
-                      </Td>
-                      <Td className="text-[13px]">
-                        {o.items.length}
-                        <div className="text-[11.5px] text-[var(--muted)]">
-                          {o.items.reduce((a, i) => a + Number(i.received), 0)} recibidos
-                        </div>
-                      </Td>
-                      <Td><Badge tone={TONE[o.status]}>{PARTS_ORDER_LABELS[o.status]}</Badge></Td>
-                      <Td className="mono text-right">{formatMoney(o.total)}</Td>
-                      <Td className="text-right">
-                        {can('partsorder:write') && o.status !== 'RECIBIDO' && o.status !== 'CANCELADO' && (
-                          <Button size="sm" variant="secondary" onClick={() => setReceiving(o)}>Recibir</Button>
-                        )}
-                      </Td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            )}
+            <DataTable
+              id="pedidos"
+              rows={data?.rows}
+              loading={loading}
+              getKey={(o) => o.id}
+              columns={columns}
+              zebra
+              emptyIcon={<Truck className="size-6" aria-hidden />}
+              emptyTitle="Sin pedidos a proveedor"
+              emptyDescription="Cuando una OT queda esperando repuestos, el pedido al proveedor se registra acá."
+              footer={<span>{data?.total ?? 0} pedidos</span>}
+            />
           </CardBody>
         </Card>
       </div>

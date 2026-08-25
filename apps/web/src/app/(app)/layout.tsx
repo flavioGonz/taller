@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 import { Tooltip } from 'react-tooltip';
 import { Sidebar } from '@/components/layout/sidebar';
+import { PageTransition } from '@/components/page-transition';
 import { ComponentInspector } from '@/components/observability/component-inspector';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui';
@@ -56,16 +56,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-dvh">
       <Sidebar collapsed={collapsed} onToggle={toggle} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <motion.main
-          id="contenido"
-          key={pathname}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.22, ease: 'easeOut' }}
-          className="flex min-w-0 flex-1 flex-col"
-        >
-          {children}
-        </motion.main>
+        <main id="contenido" className="flex min-w-0 flex-1 flex-col">
+          <PageTransition>{children}</PageTransition>
+        </main>
       </div>
       <ComponentInspector route={pathname} />
       {/* Un solo tooltip para toda la app: los componentes sólo marcan data-tooltip-* */}

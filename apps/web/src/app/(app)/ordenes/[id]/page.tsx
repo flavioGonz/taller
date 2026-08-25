@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Car, User, Wrench, Clock, FileText, CheckCircle2, Camera,
-  Truck, ClipboardCheck, KeyRound, ShieldCheck, Plus, AlertTriangle,
+  Truck, ClipboardCheck, KeyRound, ShieldCheck, Plus, AlertTriangle, Fingerprint, Copy, Check,
 } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
 import { Button, Card, CardBody, CardHeader, CardTitle, Skeleton, Table, Th, Td, Textarea, Badge, Input, Select } from '@/components/ui';
@@ -27,7 +27,7 @@ import { InsurancePanel } from '@/components/insurance-panel';
 import { useAuth } from '@/hooks/use-auth';
 
 interface Detail {
-  id: string; number: string; kind: WorkOrderKind; status: WorkOrderStatus; priority: string;
+  id: string; number: string; auditId: string; kind: WorkOrderKind; status: WorkOrderStatus; priority: string;
   receivedAt: string; promisedAt: string | null; warrantyUntil: string | null;
   complaint: string | null; diagnosis: string | null; workPerformed: string | null; internalNotes: string | null;
   mileageIn: number | null; fuelLevel: number | null; customerApproved: boolean; rejectionReason: string | null;
@@ -64,6 +64,7 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
   const [qaChecklist, setQaChecklist] = useState<ChecklistValue>({});
   const [signature, setSignature] = useState<string | null>(null);
   const [seguro, setSeguro] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useWorkOrderRoom(id);
   const reload = () => { refetch(); flow.refetch(); };
@@ -150,8 +151,28 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
               <span className="text-[12px] text-[var(--muted)]">
                 Etapa actual: <strong className="text-[var(--text)]">{STATUS_LABELS[data.status]}</strong>
               </span>
+              {data.auditId && (
+                <button
+                  type="button"
+                  onClick={() => void navigator.clipboard?.writeText(data.auditId).then(() => setCopied(true))}
+                  data-tooltip-id="ts-tip"
+                  data-tooltip-content="ID de auditoría de esta reparación: único, inmutable y para dictarlo por teléfono. Clic para copiar."
+                  className="focus-ring mono ml-auto inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border border-dashed border-[var(--border-strong)] px-2 py-1 text-[11.5px] text-[var(--muted)] transition hover:border-[var(--brand)] hover:text-[var(--brand)]"
+                >
+                  <Fingerprint className="size-3.5" aria-hidden />
+                  {data.auditId}
+                  {copied ? <Check className="size-3.5 text-[var(--ok)]" aria-hidden /> : <Copy className="size-3" aria-hidden />}
+                </button>
+              )}
             </div>
-            <ProcessStepper kind={data.kind} status={data.status} />
+            <ProcessStepper
+              kind={data.kind}
+              status={data.status}
+              busy={busy}
+              onSelect={can('workorder:write')
+                ? (next) => void act(() => api.post(`/work-orders/${id}/status`, { status: next }))
+                : undefined}
+            />
           </CardBody>
         </Card>
 

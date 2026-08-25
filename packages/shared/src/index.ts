@@ -3,6 +3,8 @@ export * from './events.js';
 export * from './constants.js';
 export * from './workshop.js';
 export * from './insurers.js';
+export * from './intakes.js';
+export * from './settings.js';
 export * from './dto.js';
 export * from './dto-flow.js';
 export * from './money.js';

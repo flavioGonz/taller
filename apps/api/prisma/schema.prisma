@@ -372,6 +372,9 @@ model WorkOrder {
   id           String            @id @default(cuid())
   tenantId     String
   number       String                                   // OT-2026-00001
+  /// Identificador inmutable de la reparación, para auditoría y trazabilidad
+  /// externa (aseguradoras, peritos, garantías). Nunca se reutiliza ni cambia.
+  auditId      String            @unique
   customerId   String
   vehicleId    String
   technicianId String?

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { seedCatalog } from './seed-catalog.js';
 import { backfillVehicleCatalog } from './backfill-catalog.js';
 import { seedInsurers } from './seed-insurers.js';
+import { newAuditId } from '../src/lib/audit-id.js';
 
 const prisma = new PrismaClient();
 const hash = (p: string) => bcrypt.hash(p, 11);
@@ -167,7 +168,7 @@ async function main() {
     });
     await prisma.workOrder.create({
       data: {
-        tenantId: tenant.id, number: `OT-${new Date().getFullYear()}-00001`, customerId: customer.id, vehicleId: vehicle.id,
+        tenantId: tenant.id, number: `OT-${new Date().getFullYear()}-00001`, auditId: newAuditId(), customerId: customer.id, vehicleId: vehicle.id,
         technicianId: tecnico.id, status: 'DIAGNOSTICO', priority: 'NORMAL',
         complaint: 'Ruido en tren delantero al pasar lomadas y vibración al frenar.',
         mileageIn: 84500, fuelLevel: 40,

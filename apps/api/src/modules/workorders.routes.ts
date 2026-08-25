@@ -7,6 +7,7 @@ import {
 } from '@taller/shared';
 import { prisma } from '../lib/prisma.js';
 import { nextNumber } from '../lib/counters.js';
+import { newAuditId } from '../lib/audit-id.js';
 import { skipTake, toPaginated, safeOrderBy } from '../lib/pagination.js';
 import { badRequest, forbidden, notFound } from '../lib/errors.js';
 import { emitTenant, emitWorkOrder, emitUser } from '../plugins/socket.js';
@@ -62,6 +63,10 @@ export default async function workOrderRoutes(app: FastifyInstance) {
     const q = workOrderQuerySchema.parse(req.query);
     const user = req.currentUser!;
 
+    // `kinds=SINIESTRO,CHAPA_PINTURA` → las páginas de Ingresos agrupan varios tipos
+    const { kinds, insured } = req.query as { kinds?: string; insured?: string };
+    const kindFilter = (kinds ?? '').split(',').map((k) => k.trim()).filter(Boolean);
+
     const where: Prisma.WorkOrderWhereInput = {
       tenantId,
       deletedAt: null,
@@ -75,6 +80,10 @@ export default async function workOrderRoutes(app: FastifyInstance) {
       ...(q.promisedFrom || q.promisedTo
         ? { promisedAt: { ...(q.promisedFrom ? { gte: q.promisedFrom } : {}), ...(q.promisedTo ? { lte: q.promisedTo } : {}) } }
         : {}),
+      ...(kindFilter.length > 0 ? { kind: { in: kindFilter as never } } : {}),
+      // `insured=true|false` separa lo que va por compañía de lo particular
+      ...(insured === 'true' ? { insuranceCase: { isNot: null } } : {}),
+      ...(insured === 'false' ? { insuranceCase: { is: null } } : {}),
       // Alcance reducido: el técnico ve lo suyo, el cliente sólo sus vehículos
       ...(user.role === 'TECNICO' ? { technicianId: user.id } : {}),
       ...(user.role === 'CLIENTE' ? { customer: { portalUser: { id: user.id } } } : {}),
@@ -82,6 +91,7 @@ export default async function workOrderRoutes(app: FastifyInstance) {
         ? {
             OR: [
               { number: { contains: q.q, mode: 'insensitive' } },
+              { auditId: { contains: q.q.toUpperCase() } },
               { vehicle: { plate: { contains: q.q.toUpperCase() } } },
               { customer: { lastName: { contains: q.q, mode: 'insensitive' } } },
               { customer: { companyName: { contains: q.q, mode: 'insensitive' } } },
@@ -96,16 +106,65 @@ export default async function workOrderRoutes(app: FastifyInstance) {
         ...skipTake(q.page, q.limit),
         orderBy: safeOrderBy(q.sort, q.order, SORTABLE, 'receivedAt'),
         select: {
-          id: true, number: true, kind: true, status: true, priority: true, receivedAt: true, promisedAt: true,
-          grandTotal: true, currency: true, bayId: true, technicianId: true,
-          customer: { select: { id: true, firstName: true, lastName: true, companyName: true, isCompany: true } },
-          vehicle: { select: { id: true, plate: true, brand: true, model: true } },
+          id: true, number: true, auditId: true, kind: true, status: true, priority: true,
+          receivedAt: true, promisedAt: true, deliveredAt: true,
+          laborTotal: true, partsTotal: true, grandTotal: true, currency: true, bayId: true, technicianId: true,
+          customer: { select: { id: true, firstName: true, lastName: true, companyName: true, isCompany: true, phone: true } },
+          vehicle: {
+            select: {
+              id: true, plate: true, brand: true, model: true, year: true, color: true, photoUrl: true,
+              brandRef: { select: { name: true, logoFile: true } },
+            },
+          },
           technician: { select: { id: true, firstName: true, lastName: true } },
+          bay: { select: { id: true, name: true } },
+          insuranceCase: { select: { status: true, insurer: { select: { name: true } } } },
+          _count: { select: { items: true, quotes: true } },
         },
       }),
       prisma.workOrder.count({ where }),
     ]);
     return toPaginated(rows, total, q.page, q.limit);
+  });
+
+  // -------------------------------------------- contadores por tipo de ingreso
+  // Alimenta el menú "Ingresos" y el tablero de /ingresos.
+  app.get('/intake-counts', { preHandler: [app.authorize('workorder:read', 'workorder:read:own')] }, async (req) => {
+    const tenantId = req.scope();
+    const user = req.currentUser!;
+    const { closed } = req.query as { closed?: string };
+
+    const base: Prisma.WorkOrderWhereInput = {
+      tenantId,
+      deletedAt: null,
+      ...(closed === 'true' ? {} : { status: { notIn: ['ENTREGADO', 'CANCELADO'] } }),
+      ...(user.role === 'TECNICO' ? { technicianId: user.id } : {}),
+    };
+
+    const [byKind, conSeguro, sinSeguro, total] = await Promise.all([
+      prisma.workOrder.groupBy({ by: ['kind'], where: base, _count: { _all: true } }),
+      prisma.workOrder.count({ where: { ...base, insuranceCase: { isNot: null } } }),
+      prisma.workOrder.count({ where: { ...base, insuranceCase: { is: null }, kind: { not: 'SINIESTRO' } } }),
+      prisma.workOrder.count({ where: base }),
+    ]);
+
+    const kinds = Object.fromEntries(byKind.map((k) => [k.kind, k._count._all]));
+    return {
+      total,
+      kinds,
+      channels: {
+        siniestros: kinds.SINIESTRO ?? 0,
+        particulares: sinSeguro,
+        aseguradora: conSeguro,
+        mantenimiento: kinds.MANTENIMIENTO ?? 0,
+        reparacion: kinds.REPARACION ?? 0,
+        diagnostico: kinds.DIAGNOSTICO ?? 0,
+        'chapa-pintura': kinds.CHAPA_PINTURA ?? 0,
+        neumaticos: kinds.NEUMATICOS ?? 0,
+        garantia: kinds.GARANTIA ?? 0,
+        preentrega: kinds.PREENTREGA ?? 0,
+      } as Record<string, number>,
+    };
   });
 
   // ------------------------------------------------------- tablero (kanban)
@@ -121,10 +180,19 @@ export default async function workOrderRoutes(app: FastifyInstance) {
       },
       orderBy: [{ priority: 'desc' }, { receivedAt: 'asc' }],
       select: {
-        id: true, number: true, kind: true, status: true, priority: true, receivedAt: true, promisedAt: true, grandTotal: true,
-        customer: { select: { firstName: true, lastName: true, companyName: true, isCompany: true } },
-        vehicle: { select: { plate: true, brand: true, model: true, photoUrl: true } },
+        id: true, number: true, auditId: true, kind: true, status: true, priority: true,
+        receivedAt: true, promisedAt: true, laborTotal: true, partsTotal: true, grandTotal: true, currency: true,
+        customer: { select: { firstName: true, lastName: true, companyName: true, isCompany: true, phone: true } },
+        vehicle: {
+          select: {
+            id: true, plate: true, brand: true, model: true, year: true, color: true, photoUrl: true,
+            brandRef: { select: { name: true, logoFile: true } },
+          },
+        },
         technician: { select: { id: true, firstName: true, lastName: true } },
+        bay: { select: { id: true, name: true } },
+        insuranceCase: { select: { status: true, insurer: { select: { name: true } } } },
+        _count: { select: { items: true, quotes: true } },
       },
     });
     return rows;
@@ -159,6 +227,7 @@ export default async function workOrderRoutes(app: FastifyInstance) {
         data: {
           tenantId,
           number,
+          auditId: newAuditId(),
           kind: data.kind,
           customerId: data.customerId,
           vehicleId: data.vehicleId,

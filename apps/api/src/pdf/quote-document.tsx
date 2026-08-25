@@ -20,7 +20,7 @@ export interface QuotePdfData {
     plate: string; brand: string; model: string; year?: number | null; color?: string | null;
     vin?: string | null; mileage?: number | null; photoDataUrl?: string | null;
   };
-  workOrder: { number: string; complaint?: string | null; diagnosis?: string | null; receivedAt: Date };
+  workOrder: { number: string; auditId?: string | null; complaint?: string | null; diagnosis?: string | null; receivedAt: Date };
   items: {
     kind: string; description: string; detail?: string | null;
     quantity: number; unitPrice: number; discountPct: number; taxPct: number; total: number;
@@ -153,6 +153,7 @@ export function QuoteDocument({ data }: { data: QuotePdfData }) {
             <Text style={s.docNumber}>{quote.number}</Text>
             <Text style={s.docMeta}>Versión {quote.version} · {fmt(quote.issueDate)}</Text>
             <Text style={s.docMeta}>OT {workOrder.number}</Text>
+            {workOrder.auditId ? <Text style={s.docMeta}>Auditoría {workOrder.auditId}</Text> : null}
             {quote.validUntil ? <Text style={s.docMeta}>Válido hasta {fmt(quote.validUntil)}</Text> : null}
           </View>
         </View>
@@ -316,7 +317,7 @@ export function QuoteDocument({ data }: { data: QuotePdfData }) {
         </View>
 
         <View style={s.footer} fixed>
-          <Text style={s.footerText}>{tenant.name} · {quote.number} v{quote.version} · OT {workOrder.number}</Text>
+          <Text style={s.footerText}>{tenant.name} · {quote.number} v{quote.version} · OT {workOrder.number}{workOrder.auditId ? ` · ${workOrder.auditId}` : ''}</Text>
           <Text style={s.footerText} render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
         </View>
       </Page>

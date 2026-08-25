@@ -3,20 +3,28 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import {
   LayoutDashboard, ClipboardList, Users, Car, Package, Receipt, Wrench,
-  Activity, Settings, ChevronLeft, Menu, LogOut, CalendarDays, FileText,
-  Truck, PhoneCall, ShieldCheck,
+  Activity, Settings, ChevronLeft, ChevronDown, Menu, LogOut, CalendarDays, FileText,
+  Truck, PhoneCall, ShieldCheck, DoorOpen, FileWarning, LayoutList,
 } from 'lucide-react';
 import { cn, initials } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
-import { ROLE_LABELS, type Permission } from '@taller/shared';
+import { useApi } from '@/hooks/use-api';
+import { ROLE_LABELS, MENU_INTAKES, type Permission } from '@taller/shared';
+
+const INTAKE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  FileWarning, Receipt, ShieldCheck,
+};
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   permission?: Permission;
+  /** Grupo desplegable: los hijos se muestran indentados. */
+  children?: { href: string; label: string; icon: React.ComponentType<{ className?: string }>; countKey?: string }[];
 }
 
 const NAV: { section: string; items: NavItem[] }[] = [
@@ -25,6 +33,20 @@ const NAV: { section: string; items: NavItem[] }[] = [
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard:read' },
       { href: '/agenda', label: 'Agenda', icon: CalendarDays, permission: 'appointment:read' },
+      {
+        href: '/ingresos',
+        label: 'Ingresos',
+        icon: DoorOpen,
+        children: [
+          { href: '/ingresos', label: 'Todos los ingresos', icon: LayoutList },
+          ...MENU_INTAKES.map((c) => ({
+            href: `/ingresos/${c.slug}`,
+            label: c.short,
+            icon: INTAKE_ICONS[c.icon] ?? DoorOpen,
+            countKey: c.slug,
+          })),
+        ],
+      },
       { href: '/ordenes', label: 'Órdenes de trabajo', icon: ClipboardList },
       { href: '/presupuestos', label: 'Presupuestos', icon: FileText, permission: 'quote:read' },
     ],
@@ -60,6 +82,30 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
   const pathname = usePathname();
   const { user, logout, can } = useAuth();
 
+  // Contadores por canal de ingreso, para el badge de cada sub-ítem
+  const counts = useApi<{ total: number; channels: Record<string, number> }>('/work-orders/intake-counts');
+
+  // Los grupos desplegables recuerdan si quedaron abiertos
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('ts-nav-open');
+      if (raw) setOpen(JSON.parse(raw) as Record<string, boolean>);
+    } catch {
+      /* sin almacenamiento disponible */
+    }
+  }, []);
+  const toggleGroup = (href: string) =>
+    setOpen((prev) => {
+      const next = { ...prev, [href]: !(prev[href] ?? true) };
+      try {
+        localStorage.setItem('ts-nav-open', JSON.stringify(next));
+      } catch {
+        /* sin almacenamiento disponible */
+      }
+      return next;
+    });
+
   return (
     <motion.aside
       animate={{ width: collapsed ? 76 : 268 }}
@@ -91,14 +137,71 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
               {!collapsed && <p className="ts-nav-section">{group.section}</p>}
               <ul className={cn('flex flex-col gap-[3px]', collapsed && 'mt-3')}>
                 {items.map((item) => {
-                  const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                  const inBranch = pathname === item.href || pathname.startsWith(`${item.href}/`);
                   const Icon = item.icon;
+
+                  // --- grupo desplegable (Ingresos) ---
+                  if (item.children && !collapsed) {
+                    const expanded = open[item.href] ?? true;
+                    return (
+                      <li key={item.href}>
+                        <button
+                          type="button"
+                          onClick={() => toggleGroup(item.href)}
+                          aria-expanded={expanded}
+                          className={cn('ts-nav-item focus-ring w-full', inBranch && 'text-[var(--text)]')}
+                          data-tooltip-id="ts-tip"
+                          data-tooltip-content="Los vehículos agrupados por cómo entraron al taller"
+                        >
+                          <Icon className="size-[18px] shrink-0" aria-hidden />
+                          <span className="truncate">{item.label}</span>
+                          {counts.data?.total ? <span className="ts-nav-count">{counts.data.total}</span> : null}
+                          <ChevronDown
+                            className={cn('size-4 shrink-0 transition-transform duration-200', !expanded && '-rotate-90')}
+                            aria-hidden
+                          />
+                        </button>
+
+                        <AnimatePresence initial={false}>
+                          {expanded && (
+                            <motion.ul
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+                              className="overflow-hidden"
+                            >
+                              {item.children!.map((child) => {
+                                const childActive = pathname === child.href;
+                                const ChildIcon = child.icon;
+                                const n = child.countKey ? counts.data?.channels?.[child.countKey] : undefined;
+                                return (
+                                  <li key={child.href} className="mt-[3px]">
+                                    <Link
+                                      href={child.href}
+                                      aria-current={childActive ? 'page' : undefined}
+                                      className="ts-nav-sub focus-ring"
+                                    >
+                                      <ChildIcon className="size-[15px] shrink-0" aria-hidden />
+                                      <span className="truncate">{child.label}</span>
+                                      {n !== undefined && n > 0 && <span className="ts-nav-count">{n}</span>}
+                                    </Link>
+                                  </li>
+                                );
+                              })}
+                            </motion.ul>
+                          )}
+                        </AnimatePresence>
+                      </li>
+                    );
+                  }
+
                   return (
                     <li key={item.href}>
                       <Link
                         href={item.href}
                         title={collapsed ? item.label : undefined}
-                        aria-current={active ? 'page' : undefined}
+                        aria-current={inBranch ? 'page' : undefined}
                         className={cn('ts-nav-item focus-ring', collapsed && 'justify-center')}
                       >
                         <Icon className="size-[18px] shrink-0" aria-hidden />

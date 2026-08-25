@@ -6,6 +6,7 @@ import { nextNumber } from '../lib/counters.js';
 import { skipTake, toPaginated } from '../lib/pagination.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { emitTenant } from '../plugins/socket.js';
+import { newAuditId } from '../lib/audit-id.js';
 
 const include = {
   customer: { select: { id: true, firstName: true, lastName: true, companyName: true, isCompany: true, phone: true } },
@@ -95,7 +96,7 @@ export default async function appointmentRoutes(app: FastifyInstance) {
       const number = await nextNumber(tx, tenantId, 'work_order', { prefix: 'OT' });
       const wo = await tx.workOrder.create({
         data: {
-          tenantId, number,
+          tenantId, number, auditId: newAuditId(),
           kind: (body.kind ?? 'REPARACION') as never,
           priority: (body.priority ?? 'NORMAL') as never,
           customerId: appt.customerId!,

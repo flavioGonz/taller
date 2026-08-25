@@ -2,15 +2,16 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Plus, Search, Pencil, Trash2, Car, Building2, User, IdCard } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Car, Building2, User, IdCard, Phone, Mail, MapPin, ClipboardList } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
-import { Button, Card, CardBody, Input, Skeleton, EmptyState, Table, Th, Td, Badge } from '@/components/ui';
+import { Button, Card, CardBody, Input, Badge } from '@/components/ui';
+import { DataTable, type Column } from '@/components/data-table';
 import { Modal, ConfirmDialog } from '@/components/modal';
 import { RowMenu } from '@/components/row-menu';
 import { CustomerForm, type CustomerRecord } from '@/components/forms/customer-form';
 import { useApi } from '@/hooks/use-api';
 import { api, qs } from '@/lib/api';
-import { customerName } from '@/lib/utils';
+import { customerName, cn } from '@/lib/utils';
 import type { Paginated } from '@taller/shared';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -44,6 +45,108 @@ export default function ClientesPage() {
     }
   }
 
+  const columns: Column<Row>[] = [
+    {
+      key: 'cliente',
+      header: 'Cliente',
+      sortValue: (c) => customerName(c),
+      cell: (c) => (
+        <span className="flex items-center gap-2.5">
+          <span className={cn('grid size-9 shrink-0 place-items-center rounded-[var(--r-sm)]', c.isCompany ? 'bg-[var(--info-bg)] text-[var(--info)]' : 'bg-[var(--brand-soft)] text-[var(--brand-700)]')}>
+            {c.isCompany ? <Building2 className="size-4" aria-hidden /> : <User className="size-4" aria-hidden />}
+          </span>
+          <span className="min-w-0">
+            <Link href={`/clientes/${c.id}`} className="focus-ring block truncate rounded font-semibold hover:text-[var(--brand)]">
+              {customerName(c)}
+            </Link>
+            <span className="flex items-center gap-1 text-[11.5px] text-[var(--muted)]">
+              {c.city ? <><MapPin className="size-3 shrink-0" aria-hidden />{c.city}</> : <span className="text-[var(--subtle)]">sin ciudad</span>}
+            </span>
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: 'tipo',
+      header: 'Tipo',
+      hideBelow: 'lg',
+      sortValue: (c) => (c.isCompany ? 'Empresa' : 'Particular'),
+      cell: (c) => <Badge tone={c.isCompany ? 'info' : 'neutral'}>{c.isCompany ? 'Empresa' : 'Particular'}</Badge>,
+    },
+    {
+      key: 'documento',
+      header: 'Documento',
+      hideBelow: 'md',
+      sortValue: (c) => c.docNumber ?? '',
+      cell: (c) => (
+        <span className="mono text-[12.5px]">
+          {c.docNumber ? `${c.docType ? `${c.docType} ` : ''}${c.docNumber}` : <span className="text-[var(--subtle)]">—</span>}
+        </span>
+      ),
+    },
+    {
+      key: 'contacto',
+      header: 'Contacto',
+      sortValue: (c) => c.phone ?? '',
+      cell: (c) => (
+        <span className="block min-w-0">
+          {c.phone && (
+            <a href={`tel:${c.phone}`} className="focus-ring mono flex items-center gap-1.5 rounded text-[12.5px] hover:text-[var(--brand)]">
+              <Phone className="size-3 shrink-0 text-[var(--subtle)]" aria-hidden />{c.phone}
+            </a>
+          )}
+          {c.email && (
+            <a href={`mailto:${c.email}`} className="focus-ring flex items-center gap-1.5 truncate rounded text-[11.5px] text-[var(--muted)] hover:text-[var(--brand)]">
+              <Mail className="size-3 shrink-0" aria-hidden />{c.email}
+            </a>
+          )}
+          {!c.phone && !c.email && <span className="text-[var(--subtle)]">sin contacto</span>}
+        </span>
+      ),
+    },
+    {
+      key: 'vehiculos',
+      header: 'Vehículos',
+      align: 'right',
+      tip: 'Cantidad de vehículos asociados al cliente',
+      sortValue: (c) => c._count.vehicles,
+      cell: (c) => (
+        <span className="mono inline-flex items-center gap-1 text-[12.5px]">
+          <Car className="size-3.5 text-[var(--subtle)]" aria-hidden />{c._count.vehicles}
+        </span>
+      ),
+    },
+    {
+      key: 'ots',
+      header: 'Órdenes',
+      align: 'right',
+      hideBelow: 'sm',
+      sortValue: (c) => c._count.workOrders,
+      cell: (c) => (
+        <span className="mono inline-flex items-center gap-1 text-[12.5px]">
+          <ClipboardList className="size-3.5 text-[var(--subtle)]" aria-hidden />{c._count.workOrders}
+        </span>
+      ),
+    },
+    {
+      key: 'acciones',
+      header: '',
+      width: '48px',
+      align: 'right',
+      cell: (c) => (
+        <RowMenu
+          label={`Acciones de ${customerName(c)}`}
+          actions={[
+            { label: 'Abrir ficha', icon: <IdCard className="size-3.5" aria-hidden />, onClick: () => window.location.assign(`/clientes/${c.id}`) },
+            { label: 'Editar', icon: <Pencil className="size-3.5" aria-hidden />, onClick: () => setEditing(c), hidden: !can('customer:write') },
+            { label: 'Ver vehículos', icon: <Car className="size-3.5" aria-hidden />, onClick: () => window.location.assign(`/vehiculos?q=${encodeURIComponent(c.docNumber ?? customerName(c))}`) },
+            { label: 'Eliminar', icon: <Trash2 className="size-3.5" aria-hidden />, danger: true, onClick: () => setRemoving(c), hidden: !can('customer:write') },
+          ]}
+        />
+      ),
+    },
+  ];
+
   return (
     <>
       <Topbar
@@ -55,82 +158,44 @@ export default function ClientesPage() {
         ) : undefined}
       />
 
-      <div className="space-y-4 p-6">
-        <Card>
-          <CardBody>
-            <div className="relative max-w-md">
-              <Search className="pointer-events-none absolute left-3 top-[34px] size-4 text-[var(--subtle)]" aria-hidden />
-              <Input label="Buscar" className="pl-9" placeholder="Nombre, documento, teléfono o email" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
-            </div>
-          </CardBody>
-        </Card>
-
+      <div className="p-6">
         <Card>
           <CardBody className="p-0">
-            {loading && !data ? (
-              <div className="space-y-2 p-4">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
-            ) : (data?.rows.length ?? 0) === 0 ? (
-              <EmptyState title="Sin clientes" description="Cargá el primer cliente para poder abrir órdenes de trabajo." />
-            ) : (
-              <>
-                <Table>
-                  <thead>
-                    <tr><Th>Cliente</Th><Th>Documento</Th><Th>Contacto</Th><Th className="text-right">Vehículos</Th><Th className="text-right">OT</Th><Th className="w-10" /></tr>
-                  </thead>
-                  <tbody>
-                    {data!.rows.map((c) => (
-                      <tr key={c.id}>
-                        <Td>
-                          <span className="flex items-center gap-2">
-                            <span className="ts-stat-ic size-7">
-                              {c.isCompany ? <Building2 className="size-3.5" aria-hidden /> : <User className="size-3.5" aria-hidden />}
-                            </span>
-                            <span>
-                              <Link
-                                href={`/clientes/${c.id}`}
-                                className="focus-ring block rounded font-semibold hover:text-[var(--brand)]"
-                                data-tooltip-id="ts-tip"
-                                data-tooltip-content="Abrir la ficha del cliente"
-                              >
-                                {customerName(c)}
-                              </Link>
-                              <span className="block text-[11.5px] text-[var(--muted)]">{c.city ?? ''}</span>
-                            </span>
-                          </span>
-                        </Td>
-                        <Td className="text-[13px]">{c.docType ? `${c.docType} ` : ''}{c.docNumber ?? '—'}</Td>
-                        <Td className="text-[13px]">{c.phone ?? '—'}<div className="text-[11.5px] text-[var(--muted)]">{c.email ?? ''}</div></Td>
-                        <Td className="mono text-right">
-                          <Link href={`/vehiculos?q=${encodeURIComponent(c.docNumber ?? '')}`} className="focus-ring rounded hover:underline">
-                            {c._count.vehicles}
-                          </Link>
-                        </Td>
-                        <Td className="mono text-right">{c._count.workOrders}</Td>
-                        <Td>
-                          <RowMenu
-                            label={`Acciones de ${customerName(c)}`}
-                            actions={[
-                              { label: 'Editar', icon: <Pencil className="size-3.5" aria-hidden />, onClick: () => setEditing(c), hidden: !can('customer:write') },
-                              { label: 'Abrir ficha', icon: <IdCard className="size-3.5" aria-hidden />, onClick: () => window.location.assign(`/clientes/${c.id}`) },
-                              { label: 'Ver vehículos', icon: <Car className="size-3.5" aria-hidden />, onClick: () => window.location.assign(`/vehiculos?q=${encodeURIComponent(c.docNumber ?? customerName(c))}`) },
-                              { label: 'Eliminar', icon: <Trash2 className="size-3.5" aria-hidden />, danger: true, onClick: () => setRemoving(c), hidden: !can('customer:write') },
-                            ]}
-                          />
-                        </Td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-
-                <div className="flex items-center justify-between border-t border-[var(--border)] px-4 py-3 text-[12.5px] text-[var(--muted)]">
-                  <span>{data!.total} clientes · página {data!.page} de {data!.pages}</span>
-                  <div className="flex gap-2">
+            <DataTable
+              id="clientes"
+              rows={data?.rows}
+              loading={loading}
+              getKey={(c) => c.id}
+              rowHref={(c) => `/clientes/${c.id}`}
+              zebra
+              columns={columns}
+              initialSort={{ key: 'cliente', dir: 'asc' }}
+              emptyIcon={<User className="size-6" aria-hidden />}
+              emptyTitle={q ? 'Ningún cliente coincide' : 'Todavía no hay clientes'}
+              emptyDescription={q ? 'Probá con otro nombre, documento o teléfono.' : 'Cargá el primer cliente para poder abrir órdenes de trabajo.'}
+              emptyAction={can('customer:write') ? (
+                <Button size="sm" onClick={() => setCreating(true)}><Plus className="size-4" aria-hidden /> Nuevo cliente</Button>
+              ) : undefined}
+              toolbar={
+                <Input
+                  aria-label="Buscar cliente"
+                  icon={<Search className="size-3.5" aria-hidden />}
+                  placeholder="Nombre, documento, teléfono o email"
+                  value={q}
+                  onChange={(e) => { setQ(e.target.value); setPage(1); }}
+                  className="!w-full sm:!w-80"
+                />
+              }
+              footer={
+                <>
+                  <span>{data?.total ?? 0} clientes · página {data?.page ?? 1} de {data?.pages ?? 1}</span>
+                  <span className="flex gap-2">
                     <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Anterior</Button>
-                    <Button variant="secondary" size="sm" disabled={page >= data!.pages} onClick={() => setPage((p) => p + 1)}>Siguiente</Button>
-                  </div>
-                </div>
-              </>
-            )}
+                    <Button variant="secondary" size="sm" disabled={page >= (data?.pages ?? 1)} onClick={() => setPage((p) => p + 1)}>Siguiente</Button>
+                  </span>
+                </>
+              }
+            />
           </CardBody>
         </Card>
       </div>
