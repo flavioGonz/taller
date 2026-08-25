@@ -563,9 +563,10 @@ model Supplier {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  parts  Part[]
-  orders PartsOrder[]
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parts        Part[]
+  orders       PartsOrder[]
+  appointments Appointment[]
 
   @@unique([tenantId, name])
   @@map("suppliers")
@@ -830,6 +831,16 @@ model VehicleModel {
 // =============================================================================
 //  CITAS / TURNOS
 // =============================================================================
+/// Qué se agenda: no todo lo que entra a la agenda es un vehículo.
+enum AppointmentKind {
+  INGRESO             /// llega un vehículo al taller
+  ENTREGA             /// se le entrega el vehículo al cliente
+  ENTREGA_PROVEEDOR   /// llega mercadería de un proveedor
+  PAGO                /// el taller le paga a alguien
+  COBRO               /// el taller cobra
+  OTRO
+}
+
 enum AppointmentStatus {
   PROGRAMADA
   CONFIRMADA
@@ -841,6 +852,9 @@ enum AppointmentStatus {
 model Appointment {
   id          String            @id @default(cuid())
   tenantId    String
+  kind        AppointmentKind   @default(INGRESO)
+  /// Título libre, para lo que no cuelga de un cliente o un vehículo
+  title       String?
   customerId  String?
   vehicleId   String?
   // Datos sueltos para cuando la cita se toma sin ficha previa
@@ -854,6 +868,16 @@ model Appointment {
   technicianId String?
   status      AppointmentStatus @default(PROGRAMADA)
   notes       String?
+
+  // --- dinero y logística, según el tipo ---
+  amount       Decimal? @db.Decimal(12, 2)
+  currency     String   @default("UYU")
+  method       String?                      // efectivo, transferencia, cheque…
+  reference    String?                      // nº de remito, factura o comprobante
+  supplierId   String?
+  partsOrderId String?
+  documentId   String?
+
   workOrderId String?           @unique
   createdById String?
   createdAt   DateTime          @default(now())
@@ -862,11 +886,14 @@ model Appointment {
   tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   customer   Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
   vehicle    Vehicle?   @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
-  bay        Bay?       @relation(fields: [bayId], references: [id], onDelete: SetNull)
-  workOrder  WorkOrder? @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+  bay        Bay?        @relation(fields: [bayId], references: [id], onDelete: SetNull)
+  workOrder  WorkOrder?  @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+  supplier   Supplier?   @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  partsOrder PartsOrder? @relation(fields: [partsOrderId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, scheduledAt])
   @@index([tenantId, status])
+  @@index([tenantId, kind])
   @@map("appointments")
 }
 
@@ -1117,6 +1144,7 @@ model PartsOrder {
   workOrder WorkOrder?       @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
   supplier  Supplier?        @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   items     PartsOrderItem[]
+  appointments Appointment[]
 
   @@unique([tenantId, number])
   @@index([tenantId, status])

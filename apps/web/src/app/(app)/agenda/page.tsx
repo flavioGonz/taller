@@ -2,56 +2,86 @@
 
 import { useCallback, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import listPlugin from '@fullcalendar/list';
 import interactionPlugin from '@fullcalendar/interaction';
 import esLocale from '@fullcalendar/core/locales/es';
-import type { EventClickArg, EventInput, DatesSetArg, DateSelectArg } from '@fullcalendar/core';
+import type { EventClickArg, EventInput, DatesSetArg, DateSelectArg, EventContentArg } from '@fullcalendar/core';
 import type { EventDropArg } from '@fullcalendar/core';
 import type { EventResizeDoneArg } from '@fullcalendar/interaction';
-import { CalendarDays, Plus, X, Car, Phone, User, Hash, Clock, MessageSquare, StickyNote, Wrench, CheckCircle2, UserX, Trash2, ExternalLink, CalendarPlus } from 'lucide-react';
+import {
+  CalendarDays, Plus, Car, Phone, User, Clock, Wrench, CheckCircle2, UserX, Trash2,
+  ExternalLink, CarFront, KeyRound, Truck, ArrowUpFromLine, ArrowDownToLine, CalendarPlus,
+  Wallet, CreditCard, Hash, Factory, ClipboardList, StickyNote, MessageSquare, Filter, CircleHelp,
+} from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
-import { Button, Card, CardBody, CardHeader, CardTitle, Input, Select, Textarea, Badge } from '@/components/ui';
+import { Button, Card, CardBody, Select, Badge } from '@/components/ui';
 import { Modal } from '@/components/modal';
+import { AgendaDialog } from '@/components/agenda-dialog';
 import { useApi } from '@/hooks/use-api';
 import { useSocketEvent } from '@/hooks/use-socket';
 import { api, qs } from '@/lib/api';
-import { customerName, formatDate } from '@/lib/utils';
-import { APPOINTMENT_LABELS, WORKORDER_KIND_DEFS, WORKORDER_KINDS, SOCKET_EVENTS, STATUS_LABELS, type WorkOrderStatus } from '@taller/shared';
+import { customerName, formatDate, cn } from '@/lib/utils';
+import {
+  APPOINTMENT_LABELS, WORKORDER_KIND_DEFS, WORKORDER_KINDS, SOCKET_EVENTS, STATUS_LABELS,
+  AGENDA_KIND_DEFS, readableAgendaKinds, writableAgendaKinds,
+  type AgendaKind, type WorkOrderStatus,
+} from '@taller/shared';
 import { useAuth } from '@/hooks/use-auth';
 import './calendar.css';
 
+const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  CarFront, KeyRound, Truck, ArrowUpFromLine, ArrowDownToLine, CalendarPlus,
+};
+const Glyph = ({ name, className }: { name?: string; className?: string }) => {
+  const Cmp = (name && ICONS[name]) || CircleHelp;
+  return <Cmp className={className} />;
+};
+
 interface Appointment {
-  id: string; scheduledAt: string; durationMin: number; status: string; reason: string | null;
+  id: string; kind: AgendaKind; scheduledAt: string; durationMin: number; status: string;
+  reason: string | null; title: string | null; notes: string | null;
   customerId: string | null; vehicleId: string | null;
-  contactName: string | null; contactPhone: string | null; plate: string | null; notes: string | null;
+  contactName: string | null; contactPhone: string | null; plate: string | null;
+  amount: number | string | null; currency: string | null; method: string | null; reference: string | null;
   customer?: { id: string; firstName?: string | null; lastName?: string | null; companyName?: string | null; isCompany: boolean; phone?: string | null } | null;
   vehicle?: { id: string; plate: string; brand: string; model: string } | null;
   workOrder?: { id: string; number: string; status: string } | null;
+  supplier?: { id: string; name: string } | null;
+  partsOrder?: { id: string; number: string; status: string } | null;
 }
-interface CustomerOpt { id: string; firstName?: string | null; lastName?: string | null; companyName?: string | null; isCompany: boolean }
-interface VehicleOpt { id: string; plate: string; brand: string; model: string }
 interface Promised {
   id: string; number: string; status: string; promisedAt: string | null;
   customer: { firstName?: string | null; lastName?: string | null; companyName?: string | null; isCompany: boolean };
   vehicle: { plate: string; brand: string; model: string };
 }
 
-/** Color de cada cita según su estado — el mismo criterio que los badges. */
-const STATUS_COLOR: Record<string, string> = {
-  PROGRAMADA: '#2563eb',
-  CONFIRMADA: '#15803d',
-  EN_TALLER: '#b45309',
-  NO_ASISTIO: '#dc2626',
-  CANCELADA: '#94a3b8',
+const METODO_LABELS: Record<string, string> = {
+  EFECTIVO: 'Efectivo', TRANSFERENCIA: 'Transferencia', DEBITO: 'Débito', CREDITO: 'Crédito', CHEQUE: 'Cheque',
 };
+
+const plata = (v: number | string | null | undefined, cur?: string | null) =>
+  v === null || v === undefined || v === ''
+    ? null
+    : `${cur ?? 'UYU'} ${Number(v).toLocaleString('es-UY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/** Un evento cancelado o con ausencia se apaga; el color lo pone el tipo. */
+function estadoTone(status: string) {
+  if (status === 'CANCELADA') return { opacity: 0.42, dash: true };
+  if (status === 'NO_ASISTIO') return { opacity: 0.72, dash: true };
+  return { opacity: 1, dash: false };
+}
 
 export default function AgendaPage() {
   const { can } = useAuth();
   const router = useRouter();
   const calRef = useRef<InstanceType<typeof FullCalendar>>(null);
+
+  const visibles = useMemo(() => readableAgendaKinds(can), [can]);
+  const cargables = useMemo(() => writableAgendaKinds(can), [can]);
 
   const [range, setRange] = useState(() => {
     const now = new Date();
@@ -60,10 +90,10 @@ export default function AgendaPage() {
       to: new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString(),
     };
   });
+  const [ocultos, setOcultos] = useState<AgendaKind[]>([]);
   const [showPromised, setShowPromised] = useState(true);
   const [selected, setSelected] = useState<Appointment | null>(null);
-  const [creating, setCreating] = useState<{ start: Date; end: Date } | null>(null);
-  const [customerId, setCustomerId] = useState('');
+  const [creating, setCreating] = useState<{ at: Date | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -71,8 +101,6 @@ export default function AgendaPage() {
   const promised = useApi<{ rows: Promised[] }>(
     showPromised ? `/work-orders${qs({ page: 1, limit: 200, promisedFrom: range.from, promisedTo: range.to })}` : null,
   );
-  const customers = useApi<CustomerOpt[]>('/customers');
-  const vehicles = useApi<{ rows: VehicleOpt[] }>(customerId ? `/vehicles?page=1&limit=100&customerId=${customerId}` : null);
 
   const reload = useCallback(() => {
     appts.refetch();
@@ -82,23 +110,33 @@ export default function AgendaPage() {
   useSocketEvent(SOCKET_EVENTS.APPOINTMENT_CHANGED, reload);
   useSocketEvent(SOCKET_EVENTS.WORKORDER_UPDATED, reload);
 
+  const conteos = useMemo(() => {
+    const m = {} as Record<AgendaKind, number>;
+    for (const a of appts.data ?? []) m[a.kind] = (m[a.kind] ?? 0) + 1;
+    return m;
+  }, [appts.data]);
+
   // ------------------------------------------------------------- eventos
   const events = useMemo<EventInput[]>(() => {
-    const list: EventInput[] = (appts.data ?? []).map((a) => {
-      const start = new Date(a.scheduledAt);
-      const title = a.customer ? customerName(a.customer) : (a.contactName ?? 'Sin nombre');
-      const plate = a.vehicle?.plate ?? a.plate ?? '';
-      return {
-        id: a.id,
-        title: plate ? `${plate} · ${title}` : title,
-        start,
-        end: new Date(start.getTime() + a.durationMin * 60000),
-        backgroundColor: STATUS_COLOR[a.status] ?? '#2563eb',
-        borderColor: STATUS_COLOR[a.status] ?? '#2563eb',
-        editable: a.status !== 'CANCELADA' && !a.workOrder,
-        extendedProps: { kind: 'cita' as const, appointment: a },
-      };
-    });
+    const list: EventInput[] = (appts.data ?? [])
+      .filter((a) => visibles.includes(a.kind) && !ocultos.includes(a.kind))
+      .map((a) => {
+        const def = AGENDA_KIND_DEFS[a.kind] ?? AGENDA_KIND_DEFS.OTRO;
+        const start = new Date(a.scheduledAt);
+        const { opacity, dash } = estadoTone(a.status);
+        return {
+          id: a.id,
+          title: tituloDe(a),
+          start,
+          end: new Date(start.getTime() + a.durationMin * 60000),
+          backgroundColor: def.token,
+          borderColor: def.token,
+          textColor: '#fff',
+          editable: a.status !== 'CANCELADA' && !a.workOrder,
+          classNames: dash ? ['ts-ev-apagado'] : undefined,
+          extendedProps: { kind: 'cita' as const, appointment: a, icon: def.icon, opacity },
+        };
+      });
 
     if (showPromised) {
       for (const w of promised.data?.rows ?? []) {
@@ -111,14 +149,14 @@ export default function AgendaPage() {
           display: 'list-item',
           editable: false,
           backgroundColor: 'transparent',
-          borderColor: '#f97316',
-          textColor: '#b45309',
+          borderColor: 'var(--kind-reparacion)',
+          textColor: 'var(--kind-reparacion)',
           extendedProps: { kind: 'entrega' as const, workOrder: w },
         });
       }
     }
     return list;
-  }, [appts.data, promised.data, showPromised]);
+  }, [appts.data, promised.data, showPromised, ocultos, visibles]);
 
   // --------------------------------------------------------- interacción
   const onDatesSet = (arg: DatesSetArg) => {
@@ -128,8 +166,8 @@ export default function AgendaPage() {
   };
 
   const onSelect = (arg: DateSelectArg) => {
-    if (!can('appointment:write')) return;
-    setCreating({ start: arg.start, end: arg.end });
+    if (cargables.length === 0) return;
+    setCreating({ at: arg.start });
     calRef.current?.getApi().unselect();
   };
 
@@ -142,7 +180,7 @@ export default function AgendaPage() {
     if (props.appointment) setSelected(props.appointment);
   };
 
-  /** Arrastrar o estirar la cita la reprograma en el servidor. */
+  /** Arrastrar o estirar el evento lo reprograma en el servidor. */
   async function reschedule(arg: EventDropArg | EventResizeDoneArg) {
     const start = arg.event.start;
     const end = arg.event.end;
@@ -173,31 +211,23 @@ export default function AgendaPage() {
     }
   }
 
-  async function crear(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const date = String(fd.get('date'));
-    const time = String(fd.get('time'));
-    await act(async () => {
-      await api.post('/appointments', {
-        customerId: fd.get('customerId') || undefined,
-        vehicleId: fd.get('vehicleId') || undefined,
-        contactName: fd.get('contactName') || undefined,
-        contactPhone: fd.get('contactPhone') || undefined,
-        plate: fd.get('plate') || undefined,
-        reason: fd.get('reason') || undefined,
-        scheduledAt: new Date(`${date}T${time}`).toISOString(),
-        durationMin: Number(fd.get('durationMin') ?? 60),
-        notes: fd.get('notes') || undefined,
-      });
-      setCreating(null);
-      setCustomerId('');
-    });
-  }
+  /** Contenido propio del evento: icono del tipo + hora + texto. */
+  const renderEvent = (arg: EventContentArg) => {
+    const props = arg.event.extendedProps as { kind?: string; icon?: string; opacity?: number };
+    if (arg.view.type.startsWith('list') || props.kind !== 'cita') return undefined;
+    return (
+      <div className="ts-ev-body" style={{ opacity: props.opacity ?? 1 }}>
+        <Glyph name={props.icon} className="ts-ev-ic" />
+        {arg.timeText && <span className="ts-ev-time">{arg.timeText}</span>}
+        <span className="ts-ev-title">{arg.event.title}</span>
+      </div>
+    );
+  };
 
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const dateValue = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  const timeValue = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const toggleKind = (k: AgendaKind) =>
+    setOcultos((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]));
+
+  const defSel = selected ? (AGENDA_KIND_DEFS[selected.kind] ?? AGENDA_KIND_DEFS.OTRO) : null;
 
   return (
     <>
@@ -209,18 +239,13 @@ export default function AgendaPage() {
               <input type="checkbox" className="size-4" checked={showPromised} onChange={(e) => setShowPromised(e.target.checked)} />
               Entregas comprometidas
             </label>
-            {can('appointment:write') && (
+            {cargables.length > 0 && (
               <Button
                 size="sm"
                 tip="También podés arrastrar sobre el calendario para elegir el horario"
-                onClick={() => {
-                  const start = new Date();
-                  start.setMinutes(0, 0, 0);
-                  start.setHours(start.getHours() + 1);
-                  setCreating({ start, end: new Date(start.getTime() + 3600000) });
-                }}
+                onClick={() => setCreating({ at: null })}
               >
-                <Plus className="size-4" aria-hidden /> Nueva cita
+                <Plus className="size-4" aria-hidden /> Agendar
               </Button>
             )}
           </>
@@ -229,6 +254,50 @@ export default function AgendaPage() {
 
       <div className="space-y-4 p-6">
         {error && <p role="alert" className="rounded-[var(--r)] bg-[var(--falla-bg)] px-3 py-2 text-[13px] text-[var(--falla)]">{error}</p>}
+
+        {/* ---------------------------------------------- filtros por tipo */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex items-center gap-1.5 text-[11.5px] font-bold uppercase tracking-wide text-[var(--subtle)]">
+            <Filter className="size-3.5" aria-hidden /> Mostrar
+          </span>
+          {visibles.map((k, i) => {
+            const def = AGENDA_KIND_DEFS[k];
+            const on = !ocultos.includes(k);
+            return (
+              <motion.button
+                key={k}
+                type="button"
+                onClick={() => toggleKind(k)}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.03, duration: 0.2 }}
+                aria-pressed={on}
+                data-tooltip-id="ts-tip"
+                data-tooltip-content={def.description}
+                className={cn(
+                  'focus-ring flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-semibold transition',
+                  on
+                    ? 'border-transparent text-[var(--on-kind)]'
+                    : 'border-[var(--border)] bg-[var(--surface)] text-[var(--subtle)] opacity-70 hover:opacity-100',
+                )}
+                style={on ? { background: def.token, color: '#fff' } : undefined}
+              >
+                <Glyph name={def.icon} className="size-3.5" />
+                {def.short}
+                {conteos[k] ? (
+                  <span className={cn('rounded-full px-1.5 text-[10.5px] font-bold', on ? 'bg-white/25' : 'bg-[var(--surface-3)]')}>
+                    {conteos[k]}
+                  </span>
+                ) : null}
+              </motion.button>
+            );
+          })}
+          {ocultos.length > 0 && (
+            <button type="button" onClick={() => setOcultos([])} className="focus-ring rounded-full px-2 py-1 text-[12px] font-semibold text-[var(--brand-700)] underline-offset-2 hover:underline">
+              Ver todo
+            </button>
+          )}
+        </div>
 
         <Card>
           <CardBody className="ts-cal">
@@ -259,113 +328,104 @@ export default function AgendaPage() {
                 { daysOfWeek: [1, 2, 3, 4, 5], startTime: '08:00', endTime: '18:00' },
                 { daysOfWeek: [6], startTime: '08:00', endTime: '13:00' },
               ]}
-              selectable={can('appointment:write')}
+              selectable={cargables.length > 0}
               selectMirror
-              editable={can('appointment:write')}
+              editable={cargables.length > 0}
               eventResizableFromStart
               events={events}
+              eventContent={renderEvent}
               datesSet={onDatesSet}
               select={onSelect}
               eventClick={onEventClick}
               eventDrop={(arg) => void reschedule(arg)}
               eventResize={(arg) => void reschedule(arg)}
-              noEventsText="Sin citas en este período"
+              noEventsText="Sin eventos en este período"
               eventTimeFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
               slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
             />
           </CardBody>
         </Card>
 
-        <div className="flex flex-wrap items-center gap-3 text-[12px] text-[var(--muted)]">
-          <span className="font-semibold">Referencias:</span>
-          {Object.entries(STATUS_COLOR).map(([k, color]) => (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] text-[var(--muted)]">
+          <span className="font-semibold">Estados:</span>
+          {Object.entries(APPOINTMENT_LABELS).map(([k, label]) => (
             <span key={k} className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full" style={{ background: color }} aria-hidden />
-              {APPOINTMENT_LABELS[k as keyof typeof APPOINTMENT_LABELS]}
+              <span
+                className="size-2.5 rounded-full border border-[var(--border-strong)]"
+                style={{ opacity: estadoTone(k).opacity, background: 'var(--muted)' }}
+                aria-hidden
+              />
+              {label}
             </span>
           ))}
           <span className="flex items-center gap-1.5">
-            <span className="size-2.5 rounded-full border-2 border-[#f97316]" aria-hidden /> Entrega comprometida
+            <span className="size-2.5 rounded-full border-2 border-[var(--kind-reparacion)]" aria-hidden /> Entrega comprometida (OT)
           </span>
-          {can('appointment:write') && <span className="ml-auto">Arrastrá una cita para reprogramarla; estirala para cambiar la duración.</span>}
+          {cargables.length > 0 && <span className="ml-auto">Arrastrá sobre el calendario para agendar; estirá un evento para cambiar la duración.</span>}
         </div>
       </div>
 
-      {/* ------------------------------------------------------ nueva cita */}
-      <Modal
+      {/* ---------------------------------------------------- alta de evento */}
+      <AgendaDialog
         open={!!creating}
         onClose={() => setCreating(null)}
-        title="Nueva cita"
-        description="Reservá el horario; al llegar el vehículo se convierte en orden de trabajo."
-        icon={<CalendarPlus className="size-[19px]" aria-hidden />}
-        width="lg"
-        persistent
-      >
-        {creating && (
-          <form onSubmit={crear} className="grid gap-4 md:grid-cols-4">
-            <div className="md:col-span-2">
-              <Select label="Cliente" name="customerId" icon={<User className="size-3.5" aria-hidden />} value={customerId} onChange={(e) => setCustomerId(e.target.value)} tip="Si es un cliente nuevo, dejalo vacío y anotá nombre y teléfono">
-                <option value="">Sin ficha (cita rápida)</option>
-                {(customers.data ?? []).map((c) => <option key={c.id} value={c.id}>{customerName(c)}</option>)}
-              </Select>
-            </div>
-            <div className="md:col-span-2">
-              <Select label="Vehículo" name="vehicleId" icon={<Car className="size-3.5" aria-hidden />} disabled={!customerId}>
-                <option value="">—</option>
-                {(vehicles.data?.rows ?? []).map((v) => <option key={v.id} value={v.id}>{v.plate} — {v.brand} {v.model}</option>)}
-              </Select>
-            </div>
-            <Input label="Matrícula" name="plate" icon={<Hash className="size-3.5" aria-hidden />} className="uppercase" />
-            <Input label="Contacto" name="contactName" icon={<User className="size-3.5" aria-hidden />} />
-            <Input label="Teléfono" name="contactPhone" icon={<Phone className="size-3.5" aria-hidden />} />
-            <Select label="Duración" name="durationMin" icon={<Clock className="size-3.5" aria-hidden />} defaultValue={String(Math.max(30, Math.round((creating.end.getTime() - creating.start.getTime()) / 60000)))}>
-              <option value="30">30 min</option><option value="60">1 hora</option>
-              <option value="120">2 horas</option><option value="240">Media jornada</option><option value="480">Jornada completa</option>
-            </Select>
-            <Input label="Fecha" name="date" type="date" icon={<CalendarDays className="size-3.5" aria-hidden />} required defaultValue={dateValue(creating.start)} />
-            <Input label="Hora" name="time" type="time" icon={<Clock className="size-3.5" aria-hidden />} required defaultValue={timeValue(creating.start)} />
-            <div className="md:col-span-2">
-              <Input label="Motivo" name="reason" icon={<MessageSquare className="size-3.5" aria-hidden />} placeholder="Service de 10.000, ruido al frenar…" />
-            </div>
-            <div className="md:col-span-4"><Textarea label="Notas" name="notes" icon={<StickyNote className="size-3.5" aria-hidden />} rows={2} /></div>
-            <div className="flex gap-2 md:col-span-4">
-              <Button type="submit" loading={busy}>Agendar</Button>
-              <Button type="button" variant="secondary" onClick={() => setCreating(null)}>Cancelar</Button>
-            </div>
-          </form>
-        )}
-      </Modal>
+        onSaved={reload}
+        defaultAt={creating?.at ?? null}
+      />
 
-      {/* --------------------------------------------------- detalle de cita */}
+      {/* ------------------------------------------------ detalle del evento */}
       <Modal
         open={!!selected}
         onClose={() => setSelected(null)}
-        title={selected ? `Cita · ${formatDate(selected.scheduledAt, true)}` : ''}
-        description="Confirmá, marcá que no vino o convertila en orden de trabajo."
-        icon={<CalendarDays className="size-[19px]" aria-hidden />}
+        title={defSel && selected ? `${defSel.label} · ${formatDate(selected.scheduledAt, true)}` : ''}
+        description={defSel?.description}
+        icon={<Glyph name={defSel?.icon} className="size-[19px]" />}
       >
-        {selected && (
+        {selected && defSel && (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
+              <span
+                className="ts-badge"
+                style={{ background: `color-mix(in srgb, ${defSel.token} 14%, transparent)`, color: defSel.token }}
+              >
+                <Glyph name={defSel.icon} className="size-3.5" /> {defSel.short}
+              </span>
               <Badge tone={selected.status === 'CONFIRMADA' ? 'success' : selected.status === 'NO_ASISTIO' ? 'danger' : selected.status === 'EN_TALLER' ? 'warn' : 'info'}>
                 {APPOINTMENT_LABELS[selected.status as keyof typeof APPOINTMENT_LABELS]}
               </Badge>
-              <span className="text-[12.5px] text-[var(--muted)]">{selected.durationMin} min</span>
+              <span className="flex items-center gap-1 text-[12.5px] text-[var(--muted)]">
+                <Clock className="size-3.5" aria-hidden /> {selected.durationMin} min
+              </span>
             </div>
 
-            <dl className="grid gap-x-6 gap-y-2 text-[13.5px] sm:grid-cols-2">
-              <Row label="Cliente" value={selected.customer ? customerName(selected.customer) : (selected.contactName ?? '—')} />
-              <Row label="Teléfono" value={selected.contactPhone ?? selected.customer?.phone ?? '—'} />
-              <Row label="Vehículo" value={selected.vehicle ? `${selected.vehicle.plate} · ${selected.vehicle.brand} ${selected.vehicle.model}` : (selected.plate ?? '—')} />
-              <Row label="Motivo" value={selected.reason ?? '—'} />
-              {selected.notes && <div className="sm:col-span-2"><Row label="Notas" value={selected.notes} /></div>}
+            <dl className="grid gap-x-6 gap-y-2.5 text-[13.5px] sm:grid-cols-2">
+              {selected.title && <Row wide icon={<ClipboardList className="size-3.5" aria-hidden />} label="Detalle" value={selected.title} />}
+              {(selected.customer || selected.contactName) && (
+                <Row icon={<User className="size-3.5" aria-hidden />} label="Cliente" value={selected.customer ? customerName(selected.customer) : selected.contactName!} />
+              )}
+              {(selected.contactPhone || selected.customer?.phone) && (
+                <Row icon={<Phone className="size-3.5" aria-hidden />} label="Teléfono" value={selected.contactPhone ?? selected.customer!.phone!} />
+              )}
+              {(selected.vehicle || selected.plate) && (
+                <Row icon={<Car className="size-3.5" aria-hidden />} label="Vehículo" value={selected.vehicle ? `${selected.vehicle.plate} · ${selected.vehicle.brand} ${selected.vehicle.model}` : selected.plate!} />
+              )}
+              {selected.supplier && <Row icon={<Factory className="size-3.5" aria-hidden />} label="Proveedor" value={selected.supplier.name} />}
+              {plata(selected.amount, selected.currency) && (
+                <Row icon={<Wallet className="size-3.5" aria-hidden />} label="Importe" value={plata(selected.amount, selected.currency)!} />
+              )}
+              {selected.method && <Row icon={<CreditCard className="size-3.5" aria-hidden />} label="Forma" value={METODO_LABELS[selected.method] ?? selected.method} />}
+              {selected.reference && <Row icon={<Hash className="size-3.5" aria-hidden />} label="Comprobante" value={selected.reference} />}
+              {selected.reason && <Row wide icon={<MessageSquare className="size-3.5" aria-hidden />} label="Motivo" value={selected.reason} />}
+              {selected.notes && <Row wide icon={<StickyNote className="size-3.5" aria-hidden />} label="Notas" value={selected.notes} />}
             </dl>
 
             {selected.workOrder ? (
               <Button variant="secondary" className="w-full" onClick={() => router.push(`/ordenes/${selected.workOrder!.id}`)}>
                 <ExternalLink className="size-4" aria-hidden /> Ver OT {selected.workOrder.number} · {STATUS_LABELS[selected.workOrder.status as WorkOrderStatus]}
               </Button>
-            ) : can('appointment:write') ? (
+            ) : null}
+
+            {can(defSel.write) && !selected.workOrder ? (
               <div className="space-y-2">
                 <div className="flex flex-wrap gap-2">
                   {selected.status === 'PROGRAMADA' && (
@@ -373,15 +433,17 @@ export default function AgendaPage() {
                       <CheckCircle2 className="size-3.5" aria-hidden /> Confirmar
                     </Button>
                   )}
-                  <Button size="sm" variant="secondary" loading={busy} onClick={() => void act(() => api.patch(`/appointments/${selected.id}`, { status: 'NO_ASISTIO' }).then(() => setSelected(null)))}>
-                    <UserX className="size-3.5" aria-hidden /> No vino
-                  </Button>
+                  {selected.kind === 'INGRESO' && (
+                    <Button size="sm" variant="secondary" loading={busy} onClick={() => void act(() => api.patch(`/appointments/${selected.id}`, { status: 'NO_ASISTIO' }).then(() => setSelected(null)))}>
+                      <UserX className="size-3.5" aria-hidden /> No vino
+                    </Button>
+                  )}
                   <Button size="sm" variant="danger" loading={busy} onClick={() => void act(() => api.del(`/appointments/${selected.id}`).then(() => setSelected(null)))}>
-                    <Trash2 className="size-3.5" aria-hidden /> Cancelar cita
+                    <Trash2 className="size-3.5" aria-hidden /> Cancelar
                   </Button>
                 </div>
 
-                {can('workorder:write') && (
+                {selected.kind === 'INGRESO' && can('workorder:write') && (
                   <form
                     className="flex flex-wrap items-end gap-2 border-t border-[var(--border)] pt-3"
                     onSubmit={(e: FormEvent<HTMLFormElement>) => {
@@ -403,12 +465,16 @@ export default function AgendaPage() {
                     </Button>
                   </form>
                 )}
-                {!selected.customer && (
+                {selected.kind === 'INGRESO' && !selected.customer && (
                   <p className="text-[12px] text-[var(--warn)]">
                     Para abrir la OT la cita necesita cliente y vehículo con ficha.
                   </p>
                 )}
               </div>
+            ) : !selected.workOrder ? (
+              <p className="rounded-[var(--r)] bg-[var(--surface-2)] px-3 py-2 text-[12.5px] text-[var(--muted)]">
+                Tu rol puede ver este evento pero no modificarlo.
+              </p>
             ) : null}
           </div>
         )}
@@ -417,11 +483,32 @@ export default function AgendaPage() {
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+/** Texto que se lee en el calendario según el tipo de evento. */
+function tituloDe(a: Appointment): string {
+  const plate = a.vehicle?.plate ?? a.plate ?? '';
+  const quien = a.customer ? customerName(a.customer) : (a.contactName ?? '');
+  switch (a.kind) {
+    case 'INGRESO':
+      return [plate, quien].filter(Boolean).join(' · ') || 'Ingreso';
+    case 'ENTREGA':
+      return [a.workOrder?.number, plate, quien].filter(Boolean).join(' · ') || 'Entrega';
+    case 'ENTREGA_PROVEEDOR':
+      return [a.supplier?.name, a.title].filter(Boolean).join(' · ') || 'Llegada de proveedor';
+    case 'PAGO':
+    case 'COBRO': {
+      const monto = plata(a.amount, a.currency);
+      return [a.title || quien, monto].filter(Boolean).join(' · ') || (a.kind === 'PAGO' ? 'Pago' : 'Cobro');
+    }
+    default:
+      return a.title || quien || a.reason || 'Evento';
+  }
+}
+
+function Row({ label, value, icon, wide }: { label: string; value: string; icon?: React.ReactNode; wide?: boolean }) {
   return (
-    <div>
-      <dt className="text-[11px] uppercase tracking-wide text-[var(--subtle)]">{label}</dt>
-      <dd className="font-medium">{value}</dd>
+    <div className={cn(wide && 'sm:col-span-2')}>
+      <dt className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-[var(--subtle)]">{icon}{label}</dt>
+      <dd className="mt-0.5 font-medium">{value}</dd>
     </div>
   );
 }

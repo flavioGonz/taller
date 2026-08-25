@@ -1,10 +1,14 @@
 import type { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
-import { createAppointmentSchema, updateAppointmentSchema, appointmentQuerySchema, idParamSchema, SOCKET_EVENTS } from '@taller/shared';
+import {
+  createAppointmentSchema, updateAppointmentSchema, appointmentQuerySchema, idParamSchema,
+  AGENDA_KIND_DEFS, readableAgendaKinds, can, SOCKET_EVENTS,
+  type AgendaKind,
+} from '@taller/shared';
 import { prisma } from '../lib/prisma.js';
 import { nextNumber } from '../lib/counters.js';
 import { skipTake, toPaginated } from '../lib/pagination.js';
-import { badRequest, notFound } from '../lib/errors.js';
+import { badRequest, forbidden, notFound } from '../lib/errors.js';
 import { emitTenant } from '../plugins/socket.js';
 import { newAuditId } from '../lib/audit-id.js';
 
@@ -13,6 +17,8 @@ const include = {
   vehicle: { select: { id: true, plate: true, brand: true, model: true } },
   bay: { select: { id: true, name: true } },
   workOrder: { select: { id: true, number: true, status: true } },
+  supplier: { select: { id: true, name: true } },
+  partsOrder: { select: { id: true, number: true, status: true } },
 } satisfies Prisma.AppointmentInclude;
 
 export default async function appointmentRoutes(app: FastifyInstance) {
@@ -22,8 +28,17 @@ export default async function appointmentRoutes(app: FastifyInstance) {
   app.get('/', { preHandler: [app.authorize('appointment:read')] }, async (req) => {
     const tenantId = req.scope();
     const q = appointmentQuerySchema.parse(req.query);
+    const role = req.currentUser!.role;
+
+    // Un técnico no tiene por qué ver los pagos del taller: el calendario se
+    // recorta en el servidor, no sólo en la pantalla.
+    const visibles = readableAgendaKinds((p) => can(role, p));
+    const pedidos = (q.kinds ?? '').split(',').map((k) => k.trim()).filter(Boolean) as AgendaKind[];
+    const kinds = pedidos.length > 0 ? pedidos.filter((k) => visibles.includes(k)) : visibles;
+
     const where: Prisma.AppointmentWhereInput = {
       tenantId,
+      kind: { in: kinds as never[] },
       ...(q.status ? { status: q.status } : {}),
       ...(q.from || q.to ? { scheduledAt: { ...(q.from ? { gte: q.from } : {}), ...(q.to ? { lte: q.to } : {}) } } : {}),
       ...(q.q
@@ -49,10 +64,18 @@ export default async function appointmentRoutes(app: FastifyInstance) {
     return toPaginated(rows, total, q.page, q.limit);
   });
 
-  app.post('/', { preHandler: [app.authorize('appointment:write')] }, async (req, reply) => {
+  app.post('/', { preHandler: [app.authorize('appointment:write', 'billing:write', 'partsorder:write', 'delivery:write')] }, async (req, reply) => {
     const tenantId = req.scope();
     const data = createAppointmentSchema.parse(req.body);
-    if (!data.customerId && !data.contactName) throw badRequest('Indicá un cliente o al menos el nombre de contacto');
+    const def = AGENDA_KIND_DEFS[data.kind];
+
+    if (!can(req.currentUser!.role, def.write)) {
+      throw forbidden(`Tu rol no puede agendar un evento de tipo "${def.label}"`);
+    }
+    // Un evento tiene que poder identificarse: o cuelga de alguien, o tiene título
+    if (!data.customerId && !data.contactName && !data.title && !data.supplierId && !data.workOrderId) {
+      throw badRequest('Poné al menos un título, un cliente o un proveedor para identificar el evento');
+    }
 
     const created = await prisma.appointment.create({
       data: { ...data, tenantId, plate: data.plate?.toUpperCase(), createdById: req.currentUser!.id },
@@ -63,12 +86,20 @@ export default async function appointmentRoutes(app: FastifyInstance) {
     return created;
   });
 
-  app.patch('/:id', { preHandler: [app.authorize('appointment:write')] }, async (req) => {
+  app.patch('/:id', { preHandler: [app.authorize('appointment:write', 'billing:write', 'partsorder:write', 'delivery:write')] }, async (req) => {
     const { id } = idParamSchema.parse(req.params);
     const tenantId = req.scope();
     const data = updateAppointmentSchema.parse(req.body);
-    const found = await prisma.appointment.findFirst({ where: { id, tenantId }, select: { id: true } });
+    const found = await prisma.appointment.findFirst({ where: { id, tenantId }, select: { id: true, kind: true } });
     if (!found) throw notFound('Cita no encontrada');
+
+    // El permiso lo manda el tipo del evento, tanto el actual como al que se mueve
+    const role = req.currentUser!.role;
+    for (const k of [found.kind as AgendaKind, data.kind as AgendaKind | undefined].filter(Boolean) as AgendaKind[]) {
+      if (!can(role, AGENDA_KIND_DEFS[k].write)) {
+        throw forbidden(`Tu rol no puede editar un evento de tipo "${AGENDA_KIND_DEFS[k].label}"`);
+      }
+    }
 
     const updated = await prisma.appointment.update({
       where: { id },

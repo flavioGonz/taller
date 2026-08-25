@@ -9,10 +9,13 @@ import {
   AUTHORIZATION_CHANNELS, AUTHORIZATION_STATUSES, PARTS_POLICIES, PARTS_SUPPLIERS,
   INVOICE_TARGETS, DEDUCTIBLE_COLLECTORS,
 } from './insurers.js';
+import { AGENDA_KINDS } from './agenda.js';
 
 /* ------------------------------------------------------------- Citas */
 
 export const createAppointmentSchema = z.object({
+  kind: z.enum(AGENDA_KINDS).default('INGRESO'),
+  title: z.string().max(160).optional(),
   customerId: z.string().optional(),
   vehicleId: z.string().optional(),
   contactName: z.string().max(120).optional(),
@@ -24,6 +27,15 @@ export const createAppointmentSchema = z.object({
   bayId: z.string().optional(),
   technicianId: z.string().optional(),
   notes: z.string().max(1000).optional(),
+  // --- según el tipo de evento ---
+  workOrderId: z.string().optional(),
+  supplierId: z.string().optional(),
+  partsOrderId: z.string().optional(),
+  documentId: z.string().optional(),
+  amount: z.coerce.number().nonnegative().optional(),
+  currency: z.string().length(3).default('UYU'),
+  method: z.string().max(30).optional(),
+  reference: z.string().max(60).optional(),
 });
 export const updateAppointmentSchema = createAppointmentSchema.partial().extend({
   status: z.enum(APPOINTMENT_STATUSES).optional(),
@@ -32,6 +44,8 @@ export const appointmentQuerySchema = paginationSchema.extend({
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
   status: z.enum(APPOINTMENT_STATUSES).optional(),
+  /** `kinds=PAGO,COBRO` filtra el calendario por tipo de evento. */
+  kinds: z.string().max(120).optional(),
 });
 
 /* ------------------------------------------------------- Inspección */

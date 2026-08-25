@@ -156,6 +156,11 @@ export const updateWorkOrderSchema = z.object({
 export const changeStatusSchema = z.object({
   status: z.enum(WORKORDER_STATUSES),
   note: z.string().max(500).optional(),
+  /**
+   * Datos propios del paso. Los que corresponden a una columna de la OT se
+   * guardan ahí; el resto se resume en la nota del historial.
+   */
+  fields: z.record(z.unknown()).optional(),
 });
 
 export const workOrderQuerySchema = paginationSchema.extend({

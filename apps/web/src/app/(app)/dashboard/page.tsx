@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, Cell } from 'recharts';
 import {
   ClipboardList, LogIn, LogOut, Wallet, TriangleAlert, ArrowRight,
@@ -14,6 +15,7 @@ import { useApi } from '@/hooks/use-api';
 import { useSocketEvent } from '@/hooks/use-socket';
 import { SOCKET_EVENTS, formatMoney, STATUS_LABELS, type WorkOrderStatus } from '@taller/shared';
 import { customerName, formatDate } from '@/lib/utils';
+import { Reveal, Stagger, StaggerItem, CountUp, CountUpText, Sparkline, Pulse, EASE_OUT } from '@/components/motion';
 
 interface Summary {
   kpis: {
@@ -36,21 +38,33 @@ interface Summary {
 const STATUS_COLORS: Record<string, string> = {
   RECEPCION: '#8590a7', DIAGNOSTICO: '#0ea5e9', PRESUPUESTADO: '#f59e0b', APROBADO: '#38bdf8',
   EN_PROCESO: '#fbbf24', ESPERA_REPUESTO: '#ef4444', CONTROL_CALIDAD: '#818cf8',
-  FINALIZADO: '#10b981', ENTREGADO: '#059669', CANCELADO: '#9ca3af',
+  LAVADO: '#06b6d4', FINALIZADO: '#10b981', ENTREGADO: '#059669',
+  RECHAZADO: '#f87171', CANCELADO: '#9ca3af',
 };
 
-function Kpi({ icon, label, value, hint, tone = 'neutral' }: { icon: React.ReactNode; label: string; value: string; hint?: string; tone?: 'neutral' | 'accent' | 'danger' }) {
+function Kpi({ icon, label, value, hint, tone = 'neutral', spark }: {
+  icon: React.ReactNode; label: string; value: string; hint?: string;
+  tone?: 'neutral' | 'accent' | 'danger';
+  /** Serie corta para el mini gráfico de la derecha. */
+  spark?: number[];
+}) {
+  const color = tone === 'danger' ? 'var(--falla)' : tone === 'accent' ? 'var(--brand)' : 'var(--ok)';
   return (
-    <Card>
+    <Card className="ts-sheen">
       <CardBody className="flex items-start gap-4">
         <div className={`ts-stat-ic size-11 rounded-xl ${tone === 'danger' ? 'danger' : tone === 'accent' ? '' : 'ok'}`}>
           {icon}
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-xs text-[var(--text-muted)]">{label}</p>
-          <p className="mt-0.5 truncate text-2xl font-semibold tracking-tight">{value}</p>
+          <p className="mt-0.5 truncate text-2xl font-semibold tracking-tight">
+            <CountUpText value={value} />
+          </p>
           {hint && <p className="text-[11px] text-[var(--text-muted)]">{hint}</p>}
         </div>
+        {spark && spark.length > 1 && (
+          <Sparkline data={spark} color={color} className="mt-1 shrink-0 opacity-80" />
+        )}
       </CardBody>
     </Card>
   );
@@ -58,12 +72,15 @@ function Kpi({ icon, label, value, hint, tone = 'neutral' }: { icon: React.React
 
 function MiniKpi({ icon, label, value, href, alert }: { icon: React.ReactNode; label: string; value: number | string; href?: string; alert?: boolean }) {
   const body = (
-    <div className={`ts-stat flex items-center gap-3 ${alert ? '!border-[var(--warn-bd)]' : ''}`}>
+    <div className={`ts-stat flex items-center gap-3 transition hover:-translate-y-0.5 hover:shadow-[var(--sh-md)] ${alert ? '!border-[var(--warn-bd)]' : ''}`}>
       <span className={`ts-stat-ic size-8 ${alert ? 'warn' : ''}`}>{icon}</span>
-      <div className="min-w-0">
-        <p className="mono text-[18px] font-extrabold leading-none">{value}</p>
+      <div className="min-w-0 flex-1">
+        <p className="mono text-[18px] font-extrabold leading-none">
+          {typeof value === 'number' ? <CountUp value={value} /> : value}
+        </p>
         <p className="truncate text-[11.5px] text-[var(--muted)]">{label}</p>
       </div>
+      {alert && <Pulse color="var(--warn)" className="mr-0.5 shrink-0" />}
     </div>
   );
   return href ? <Link href={href} className="focus-ring rounded-[var(--r)]">{body}</Link> : body;
@@ -80,6 +97,8 @@ export default function DashboardPage() {
     () => (data?.series ?? []).map((s) => ({ ...s, label: formatDate(s.day).slice(0, 5) })),
     [data],
   );
+  const sparkCount = useMemo(() => (data?.series ?? []).slice(-14).map((s) => s.count), [data]);
+  const sparkTotal = useMemo(() => (data?.series ?? []).slice(-14).map((s) => Number(s.total)), [data]);
 
   if (loading && !data) {
     return (
@@ -101,24 +120,29 @@ export default function DashboardPage() {
       <Topbar title="Dashboard" />
 
       <div className="space-y-4 p-6">
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="Indicadores">
-          <Kpi icon={<ClipboardList className="size-5" aria-hidden />} label="OT abiertas" value={String(k?.openWorkOrders ?? 0)} hint="En taller ahora" tone="accent" />
-          <Kpi icon={<LogIn className="size-5" aria-hidden />} label="Ingresos hoy" value={String(k?.todayIn ?? 0)} hint="Vehículos recibidos" />
-          <Kpi icon={<LogOut className="size-5" aria-hidden />} label="Entregas hoy" value={String(k?.todayOut ?? 0)} hint="Vehículos entregados" />
-          <Kpi icon={<Wallet className="size-5" aria-hidden />} label="Facturado del mes" value={formatMoney(k?.monthRevenue ?? 0)} hint={`Por cobrar: ${formatMoney(k?.receivables ?? 0)}`} tone={(k?.receivables ?? 0) > 0 ? 'danger' : 'neutral'} />
-        </section>
+        <div className="flex items-center gap-2 text-[12px] text-[var(--muted)]">
+          <Pulse color="var(--ok)" />
+          <span>Datos en vivo · se actualizan solos cuando cambia una orden</span>
+        </div>
+
+        <Stagger className="grid gap-4 md:grid-cols-2 xl:grid-cols-4" gap={0.06}>
+          <StaggerItem><Kpi icon={<ClipboardList className="size-5" aria-hidden />} label="OT abiertas" value={String(k?.openWorkOrders ?? 0)} hint="En taller ahora" tone="accent" spark={sparkCount} /></StaggerItem>
+          <StaggerItem><Kpi icon={<LogIn className="size-5" aria-hidden />} label="Ingresos hoy" value={String(k?.todayIn ?? 0)} hint="Vehículos recibidos" /></StaggerItem>
+          <StaggerItem><Kpi icon={<LogOut className="size-5" aria-hidden />} label="Entregas hoy" value={String(k?.todayOut ?? 0)} hint="Vehículos entregados" /></StaggerItem>
+          <StaggerItem><Kpi icon={<Wallet className="size-5" aria-hidden />} label="Facturado del mes" value={formatMoney(k?.monthRevenue ?? 0)} hint={`Por cobrar: ${formatMoney(k?.receivables ?? 0)}`} tone={(k?.receivables ?? 0) > 0 ? 'danger' : 'neutral'} spark={sparkTotal} /></StaggerItem>
+        </Stagger>
 
         {/* Lo que necesita atención hoy */}
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6" aria-label="Pendientes del día">
-          <MiniKpi href="/agenda" icon={<CalendarDays className="size-4" aria-hidden />} label="Citas hoy" value={k?.appointmentsToday ?? 0} />
-          <MiniKpi href="/presupuestos" icon={<FileText className="size-4" aria-hidden />} label="Esperando respuesta" value={k?.quotesWaiting ?? 0} alert={(k?.quotesWaiting ?? 0) > 0} />
-          <MiniKpi href="/pedidos" icon={<Truck className="size-4" aria-hidden />} label="Repuestos en camino" value={k?.partsInTransit ?? 0} />
-          <MiniKpi href="/postventa" icon={<PhoneCall className="size-4" aria-hidden />} label="Seguimientos vencidos" value={k?.followUpsDue ?? 0} alert={(k?.followUpsDue ?? 0) > 0} />
-          <MiniKpi href="/ordenes" icon={<ShieldCheck className="size-4" aria-hidden />} label="Garantías por vencer" value={k?.warrantyExpiring ?? 0} />
-          <MiniKpi icon={<Timer className="size-4" aria-hidden />} label="Ciclo medio" value={k?.avgCycleHours != null ? `${k.avgCycleHours} h` : '—'} />
-        </section>
+        <Stagger className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6" gap={0.04} delay={0.1}>
+          <StaggerItem><MiniKpi href="/agenda" icon={<CalendarDays className="size-4" aria-hidden />} label="Citas hoy" value={k?.appointmentsToday ?? 0} /></StaggerItem>
+          <StaggerItem><MiniKpi href="/presupuestos" icon={<FileText className="size-4" aria-hidden />} label="Esperando respuesta" value={k?.quotesWaiting ?? 0} alert={(k?.quotesWaiting ?? 0) > 0} /></StaggerItem>
+          <StaggerItem><MiniKpi href="/pedidos" icon={<Truck className="size-4" aria-hidden />} label="Repuestos en camino" value={k?.partsInTransit ?? 0} /></StaggerItem>
+          <StaggerItem><MiniKpi href="/postventa" icon={<PhoneCall className="size-4" aria-hidden />} label="Seguimientos vencidos" value={k?.followUpsDue ?? 0} alert={(k?.followUpsDue ?? 0) > 0} /></StaggerItem>
+          <StaggerItem><MiniKpi href="/ordenes" icon={<ShieldCheck className="size-4" aria-hidden />} label="Garantías por vencer" value={k?.warrantyExpiring ?? 0} /></StaggerItem>
+          <StaggerItem><MiniKpi icon={<Timer className="size-4" aria-hidden />} label="Ciclo medio" value={k?.avgCycleHours != null ? `${k.avgCycleHours} h` : '—'} /></StaggerItem>
+        </Stagger>
 
-        <section className="grid gap-4 xl:grid-cols-3">
+        <Reveal as="section" className="grid gap-4 xl:grid-cols-3" delay={0.05}>
           <Card className="xl:col-span-2">
             <CardHeader>
               <CardTitle>Ingresos de vehículos · últimos 30 días</CardTitle>
@@ -181,9 +205,9 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             </CardBody>
           </Card>
-        </section>
+        </Reveal>
 
-        <section className="grid gap-4 xl:grid-cols-3">
+        <Reveal as="section" className="grid gap-4 xl:grid-cols-3">
           <Card className="xl:col-span-2">
             <CardHeader>
               <CardTitle>Últimas órdenes</CardTitle>
@@ -202,8 +226,14 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data!.recent.map((w) => (
-                      <tr key={w.id} className="transition-colors hover:bg-[var(--surface-2)]">
+                    {data!.recent.map((w, i) => (
+                      <motion.tr
+                        key={w.id}
+                        className="transition-colors hover:bg-[var(--surface-2)]"
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.04 * i, duration: 0.3, ease: EASE_OUT }}
+                      >
                         <Td>
                           <Link href={`/ordenes/${w.id}`} className="focus-ring rounded font-medium hover:underline">
                             {w.number}
@@ -217,7 +247,7 @@ export default function DashboardPage() {
                         </Td>
                         <Td><StatusBadge status={w.status} /></Td>
                         <Td className="text-right tabular-nums">{formatMoney(w.grandTotal)}</Td>
-                      </tr>
+                      </motion.tr>
                     ))}
                   </tbody>
                 </Table>
@@ -236,14 +266,20 @@ export default function DashboardPage() {
                 {(data?.lowStock ?? []).length === 0 ? (
                   <p className="py-6 text-center text-xs text-[var(--text-muted)]">Todo el inventario está por encima del mínimo.</p>
                 ) : (
-                  data!.lowStock.map((p) => (
-                    <div key={p.id} className="flex items-center justify-between gap-3 rounded-lg bg-[var(--surface-2)] px-3 py-2">
+                  data!.lowStock.map((p, i) => (
+                    <motion.div
+                      key={p.id}
+                      className="flex items-center justify-between gap-3 rounded-lg bg-[var(--surface-2)] px-3 py-2"
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.05 * i, duration: 0.3, ease: EASE_OUT }}
+                    >
                       <div className="min-w-0">
                         <p className="truncate text-xs font-medium">{p.name}</p>
                         <p className="font-mono text-[10px] text-[var(--text-muted)]">{p.sku}</p>
                       </div>
-                      <span className="shrink-0 text-xs font-semibold tabular-nums text-amber-600">{p.onhand} / {p.minstock}</span>
-                    </div>
+                      <span className="shrink-0 text-xs font-semibold tabular-nums text-[var(--warn)]">{p.onhand} / {p.minstock}</span>
+                    </motion.div>
                   ))
                 )}
               </CardBody>
@@ -259,16 +295,21 @@ export default function DashboardPage() {
                     <div key={t.technicianId} className="flex items-center gap-3">
                       <span className="w-28 shrink-0 truncate text-xs">{t.name}</span>
                       <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--surface-2)]">
-                        <div className="h-full rounded-full bg-[var(--brand-500)]" style={{ width: `${Math.min(100, t.open * 20)}%` }} />
+                        <motion.div
+                          className="h-full rounded-full bg-[var(--brand-500)]"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.min(100, t.open * 20)}%` }}
+                          transition={{ duration: 0.7, ease: EASE_OUT }}
+                        />
                       </div>
-                      <span className="w-6 text-right text-xs tabular-nums">{t.open}</span>
+                      <span className="w-6 text-right text-xs tabular-nums"><CountUp value={t.open} /></span>
                     </div>
                   ))
                 )}
               </CardBody>
             </Card>
           </div>
-        </section>
+        </Reveal>
       </div>
     </>
   );

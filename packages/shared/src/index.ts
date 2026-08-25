@@ -5,6 +5,8 @@ export * from './workshop.js';
 export * from './insurers.js';
 export * from './intakes.js';
 export * from './settings.js';
+export * from './steps.js';
+export * from './agenda.js';
 export * from './dto.js';
 export * from './dto-flow.js';
 export * from './money.js';

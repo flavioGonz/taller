@@ -2,7 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
 import {
   createWorkOrderSchema, updateWorkOrderSchema, changeStatusSchema, workOrderQuerySchema,
-  idParamSchema, computeLine, computeTotals, canTransition, SOCKET_EVENTS,
+  STEP_WRITABLE_COLUMNS, STEP_FORMS,
+  idParamSchema, computeLine, computeTotals, canTransition, can, SOCKET_EVENTS,
   type WorkOrderStatus,
 } from '@taller/shared';
 import { prisma } from '../lib/prisma.js';
@@ -29,6 +30,49 @@ const detailInclude = {
   history: { orderBy: { createdAt: 'desc' }, include: { user: { select: { firstName: true, lastName: true } } } },
   attachments: true,
 } satisfies Prisma.WorkOrderInclude;
+
+/**
+ * Separa lo que trae el formulario de un paso: lo que va a una columna de la OT
+ * y lo que se resume en la nota del historial. Nunca escribe una columna que el
+ * paso no tenga declarada, aunque venga en el cuerpo del pedido.
+ */
+function splitStepFields(fields?: Record<string, unknown>): {
+  columns: Record<string, unknown>;
+  extras: string;
+} {
+  if (!fields) return { columns: {}, extras: '' };
+
+  const columns: Record<string, unknown> = {};
+  const notes: string[] = [];
+
+  for (const [key, raw] of Object.entries(fields)) {
+    if (raw === undefined || raw === null || raw === '') continue;
+
+    if ((STEP_WRITABLE_COLUMNS as readonly string[]).includes(key)) {
+      if (key === 'warrantyDays') {
+        const dias = Number(raw);
+        if (Number.isFinite(dias) && dias >= 0) {
+          const hasta = new Date();
+          hasta.setDate(hasta.getDate() + dias);
+          columns.warrantyUntil = hasta;
+          notes.push(`garantía ${dias} días`);
+        }
+        continue;
+      }
+      if (key === 'promisedAt') { columns.promisedAt = new Date(String(raw)); continue; }
+      if (key === 'mileageIn' || key === 'fuelLevel') { columns[key] = Math.round(Number(raw)); continue; }
+      if (key === 'technicianId' || key === 'bayId') { columns[key] = String(raw); continue; }
+      columns[key] = String(raw);
+      continue;
+    }
+
+    // Campo propio del paso sin columna: queda escrito en el historial
+    const valor = typeof raw === 'boolean' ? (raw ? 'sí' : 'no') : String(raw);
+    notes.push(`${key}: ${valor}`);
+  }
+
+  return { columns, extras: notes.join(' · ').slice(0, 480) };
+}
 
 /** Recalcula y persiste los totales de la OT a partir de sus ítems. */
 async function recalcTotals(db: Prisma.TransactionClient, workOrderId: string) {
@@ -342,7 +386,7 @@ export default async function workOrderRoutes(app: FastifyInstance) {
   app.post('/:id/status', { preHandler: [app.authorize('workorder:status')] }, async (req) => {
     const { id } = idParamSchema.parse(req.params);
     const tenantId = req.scope();
-    const { status, note } = changeStatusSchema.parse(req.body);
+    const { status, note, fields } = changeStatusSchema.parse(req.body);
     const user = req.currentUser!;
 
     const wo = await prisma.workOrder.findFirst({
@@ -351,6 +395,13 @@ export default async function workOrderRoutes(app: FastifyInstance) {
     });
     if (!wo) throw notFound('OT no encontrada');
     if (user.role === 'TECNICO' && wo.technicianId !== user.id) throw forbidden('La OT está asignada a otro técnico');
+
+    // Cada paso puede exigir un permiso propio: aprobar no es lo mismo que
+    // entregar, y entregar no es lo mismo que empezar el trabajo.
+    const paso = STEP_FORMS[status];
+    if (paso && !can(user.role, paso.permission)) {
+      throw forbidden(`Tu rol no puede ejecutar el paso "${paso.title}"`);
+    }
 
     const from = wo.status as WorkOrderStatus;
     if (from === status) return wo;
@@ -394,9 +445,14 @@ export default async function workOrderRoutes(app: FastifyInstance) {
       if (status === 'FINALIZADO') data.finishedAt = new Date();
       if (status === 'ENTREGADO') data.deliveredAt = new Date();
 
+      // --- datos que trae el formulario del paso ---
+      const { columns, extras } = splitStepFields(fields);
+      Object.assign(data, columns);
+      const fullNote = [note, extras].filter(Boolean).join(' · ') || undefined;
+
       await tx.workOrder.update({ where: { id }, data });
       await tx.workOrderStatusHistory.create({
-        data: { tenantId, workOrderId: id, fromStatus: from, toStatus: status, userId: user.id, note },
+        data: { tenantId, workOrderId: id, fromStatus: from, toStatus: status, userId: user.id, note: fullNote },
       });
       return tx.workOrder.findUniqueOrThrow({ where: { id }, include: detailInclude });
     });

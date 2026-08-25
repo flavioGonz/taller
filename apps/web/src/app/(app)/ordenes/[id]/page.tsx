@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Car, User, Wrench, Clock, FileText, CheckCircle2, Camera,
-  Truck, ClipboardCheck, KeyRound, ShieldCheck, Plus, AlertTriangle, Fingerprint, Copy, Check,
+  Truck, ClipboardCheck, ClipboardList, KeyRound, ShieldCheck, Plus, AlertTriangle,
+  Fingerprint, Copy, Check, ChevronRight, Lock, Stethoscope, ThumbsUp, ThumbsDown,
+  PackageSearch, Droplets, PartyPopper, Ban, CircleHelp,
 } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
 import { Button, Card, CardBody, CardHeader, CardTitle, Skeleton, Table, Th, Td, Textarea, Badge, Input, Select } from '@/components/ui';
@@ -16,14 +18,15 @@ import { SignaturePad } from '@/components/signature-pad';
 import { useApi } from '@/hooks/use-api';
 import { useSocketEvent, useWorkOrderRoom } from '@/hooks/use-socket';
 import { api } from '@/lib/api';
-import { customerName, formatDate, relativeTime } from '@/lib/utils';
+import { customerName, formatDate, relativeTime, cn } from '@/lib/utils';
 import {
   SOCKET_EVENTS, STATUS_TRANSITIONS, STATUS_LABELS, QUOTE_STATUS_LABELS, PARTS_ORDER_LABELS,
   QUALITY_CHECKLIST, QUALITY_RESULTS, QUALITY_RESULT_LABELS, formatMoney,
-  WORKORDER_KIND_DEFS, suggestedNext,
+  WORKORDER_KIND_DEFS, suggestedNext, stepFormFor,
   type WorkOrderStatus, type WorkOrderKind,
 } from '@taller/shared';
 import { InsurancePanel } from '@/components/insurance-panel';
+import { StepDialog } from '@/components/step-dialog';
 import { useAuth } from '@/hooks/use-auth';
 
 interface Detail {
@@ -50,6 +53,15 @@ interface Timeline {
 
 interface Tech { id: string; firstName: string; lastName: string }
 
+const STEP_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  ClipboardList, Stethoscope, FileText, ThumbsUp, ThumbsDown, PackageSearch, Wrench,
+  ShieldCheck, Droplets, PartyPopper, KeyRound, Ban,
+};
+const StepGlyph = ({ name, className }: { name?: string; className?: string }) => {
+  const Cmp = (name && STEP_ICONS[name]) || CircleHelp;
+  return <Cmp className={className} />;
+};
+
 export default function OrdenDetallePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { can } = useAuth();
@@ -65,6 +77,7 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
   const [signature, setSignature] = useState<string | null>(null);
   const [seguro, setSeguro] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [step, setStep] = useState<WorkOrderStatus | null>(null);
 
   useWorkOrderRoom(id);
   const reload = () => { refetch(); flow.refetch(); };
@@ -169,9 +182,7 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
               kind={data.kind}
               status={data.status}
               busy={busy}
-              onSelect={can('workorder:write')
-                ? (next) => void act(() => api.post(`/work-orders/${id}/status`, { status: next }))
-                : undefined}
+              onSelect={can('workorder:status') ? (next) => setStep(next as WorkOrderStatus) : undefined}
             />
           </CardBody>
         </Card>
@@ -439,20 +450,56 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
                   </p>
                 ) : (
                   <>
-                    <Textarea label="Nota (opcional)" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Detalle del cambio…" />
-                    <div className="flex flex-wrap gap-2">
+                    <p className="text-[12.5px] text-[var(--muted)]">
+                      Cada paso pide lo suyo: al elegirlo se abre el formulario con los datos que hay que dejar registrados.
+                    </p>
+                    <div className="flex flex-col gap-2">
                       {next.map((s) => {
                         const suggested = s === suggestedNext(data.kind, data.status);
+                        const paso = stepFormFor(s);
+                        const puede = !paso || can(paso.permission);
                         return (
-                          <Button
-                            key={s} size="sm"
-                            variant={s === 'CANCELADO' ? 'danger' : suggested ? 'primary' : 'secondary'}
-                            loading={busy}
-                            tip={suggested ? `Paso siguiente del recorrido de ${WORKORDER_KIND_DEFS[data.kind]?.short.toLowerCase()}` : undefined}
-                            onClick={() => void act(() => api.post(`/work-orders/${id}/status`, { status: s, note: note || undefined }))}
+                          <button
+                            key={s}
+                            type="button"
+                            disabled={!puede}
+                            onClick={() => setStep(s)}
+                            data-tooltip-id="ts-tip"
+                            data-tooltip-content={
+                              !puede
+                                ? 'Tu rol no puede ejecutar este paso'
+                                : paso
+                                  ? `${paso.description}${paso.fields.length ? ` · ${paso.fields.length} datos a completar` : ''}`
+                                  : undefined
+                            }
+                            className={cn(
+                              'focus-ring flex w-full items-center gap-2.5 rounded-[var(--r)] border p-2.5 text-left transition',
+                              suggested
+                                ? 'border-[var(--brand)] bg-[var(--brand-soft)]'
+                                : 'border-[var(--border)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-2)]',
+                              s === 'CANCELADO' && 'border-[var(--falla-bd)] hover:bg-[var(--falla-bg)]',
+                              !puede && 'cursor-not-allowed opacity-55',
+                            )}
                           >
-                            {STATUS_LABELS[s]}
-                          </Button>
+                            <span className={cn(
+                              'grid size-8 shrink-0 place-items-center rounded-[9px]',
+                              suggested ? 'bg-[var(--surface)] text-[var(--brand)]' : 'bg-[var(--surface-2)] text-[var(--subtle)]',
+                              s === 'CANCELADO' && 'bg-[var(--falla-bg)] text-[var(--falla)]',
+                            )}>
+                              <StepGlyph name={paso?.icon} className="size-4" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className={cn('block text-[13.5px] font-semibold', suggested && 'text-[var(--brand-700)]')}>
+                                {paso?.title ?? STATUS_LABELS[s]}
+                              </span>
+                              <span className="block truncate text-[11.5px] text-[var(--muted)]">
+                                {suggested ? 'Paso siguiente del recorrido' : STATUS_LABELS[s]}
+                              </span>
+                            </span>
+                            {!puede
+                              ? <Lock className="size-3.5 shrink-0 text-[var(--subtle)]" aria-hidden />
+                              : <ChevronRight className="size-4 shrink-0 text-[var(--subtle)]" aria-hidden />}
+                          </button>
                         );
                       })}
                     </div>
@@ -492,6 +539,27 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
           </div>
         </div>
       </div>
+
+      <StepDialog
+        open={!!step}
+        onClose={() => setStep(null)}
+        workOrderId={id}
+        workOrderKind={data.kind}
+        status={step}
+        current={{
+          complaint: data.complaint,
+          diagnosis: data.diagnosis,
+          workPerformed: data.workPerformed,
+          internalNotes: data.internalNotes,
+          mileageIn: data.mileageIn,
+          fuelLevel: data.fuelLevel,
+          technicianId: data.technician?.id,
+          bayId: data.bay?.id,
+          promisedAt: data.promisedAt,
+          rejectionReason: data.rejectionReason,
+        }}
+        onDone={reload}
+      />
     </>
   );
 }

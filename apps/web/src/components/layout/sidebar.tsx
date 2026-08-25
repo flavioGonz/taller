@@ -206,6 +206,14 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
                         data-tooltip-place="right"
                         className={cn('ts-nav-item focus-ring', collapsed && 'justify-center')}
                       >
+                        {inBranch && (
+                          <motion.span
+                            layoutId="ts-nav-activo"
+                            className="ts-nav-pill"
+                            transition={{ type: 'spring', stiffness: 480, damping: 38 }}
+                            aria-hidden
+                          />
+                        )}
                         <Icon className="size-[18px] shrink-0" aria-hidden />
                         {!collapsed && <span className="truncate">{item.label}</span>}
                       </Link>

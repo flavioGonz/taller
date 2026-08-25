@@ -89,3 +89,31 @@
   .ts-cal .fc .fc-toolbar.fc-header-toolbar { flex-direction: column; align-items: stretch; }
   .ts-cal .fc .fc-toolbar-chunk { display: flex; justify-content: center; }
 }
+
+/* --- contenido propio del evento: icono del tipo + hora + texto --- */
+.ts-cal .fc .ts-ev-body {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 1px 0;
+  line-height: 1.25;
+}
+.ts-cal .fc .ts-ev-ic { width: 12px; height: 12px; flex: none; opacity: .92; }
+.ts-cal .fc .ts-ev-time { font-weight: 800; font-variant-numeric: tabular-nums; opacity: .88; flex: none; }
+.ts-cal .fc .ts-ev-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.ts-cal .fc .fc-timegrid-event .ts-ev-body { flex-wrap: wrap; }
+.ts-cal .fc .fc-timegrid-event .ts-ev-title { white-space: normal; }
+
+/* un evento cancelado o con ausencia queda apagado y punteado */
+.ts-cal .fc .ts-ev-apagado { border-left-style: dashed; filter: saturate(.55); }
+.ts-cal .fc .ts-ev-apagado .ts-ev-title { text-decoration: line-through; text-decoration-thickness: 1px; }
+
+/* entrada suave de los eventos al cambiar de vista */
+@media (prefers-reduced-motion: no-preference) {
+  .ts-cal .fc .fc-event { animation: ts-ev-in .22s var(--ease) both; }
+}
+@keyframes ts-ev-in {
+  from { opacity: 0; transform: translateY(3px) scale(.985); }
+  to   { opacity: 1; transform: none; }
+}

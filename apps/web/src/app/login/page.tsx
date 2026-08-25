@@ -7,6 +7,7 @@ import {
   ShieldCheck, Car, ClipboardList,
 } from 'lucide-react';
 import { Button, Card, CardBody, Input } from '@/components/ui';
+import { Ambient } from '@/components/ambient';
 import { useAuth } from '@/hooks/use-auth';
 import type { ApiError } from '@/lib/api';
 
@@ -68,6 +69,7 @@ export default function LoginPage() {
 
       {/* ------------------------------------------------ presentación */}
       <section className="relative hidden overflow-hidden border-r border-[var(--border)] bg-[var(--surface)] p-12 lg:flex lg:flex-col lg:justify-between">
+        <Ambient intensity={0.5} />
         <span
           aria-hidden
           className="pointer-events-none absolute -left-24 -top-32 size-[520px] rounded-full opacity-[0.13]"

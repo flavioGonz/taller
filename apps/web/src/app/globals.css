@@ -156,17 +156,23 @@ body, .ts-side, .ts-card, .ts-btn, .ts-badge, .ts-input, .ts-topbar, .ts-nav-ite
   transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 .ts-nav-item:hover { background: var(--surface-2); color: var(--text); }
-.ts-nav-item[aria-current="page"] {
-  background: var(--brand-soft); color: var(--brand-700); font-weight: 600;
+.ts-nav-item[aria-current="page"] { color: var(--brand-700); font-weight: 600; }
+/* el fondo y la barrita de la sección activa se dibujan con <motion.span>
+   (layoutId "ts-nav-activo"), así el resaltado se desliza entre secciones */
+.ts-nav-pill {
+  position: absolute; inset: 0;
+  border-radius: 10px; background: var(--brand-soft);
+  z-index: 0;
 }
-/* barrita que marca la sección abierta */
-.ts-nav-item[aria-current="page"]::before {
+.ts-nav-pill::before {
   content: ''; position: absolute; left: -14px; top: 50%; transform: translateY(-50%);
   width: 3px; height: 20px; border-radius: 0 3px 3px 0; background: var(--brand-600);
 }
+.ts-nav-item > svg,
+.ts-nav-item > span { position: relative; z-index: 1; }
 .ts-nav-item[aria-current="page"] svg { color: var(--brand-600); }
 .ts-nav-item svg { color: var(--subtle); flex: none; }
-.ts-nav-item[aria-current="page"]:hover { background: var(--brand-soft); color: var(--brand-700); }
+.ts-nav-item[aria-current="page"]:hover { background: transparent; color: var(--brand-700); }
 
 /* Sub-ítems de un grupo desplegable del menú (Ingresos) */
 .ts-nav-sub {
@@ -622,6 +628,53 @@ textarea.ts-input { min-height: 78px; resize: vertical; }
    "AbortError: Transition was skipped" al navegar rápido. */
 @keyframes fade-in  { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+
+/* ------------------------------------------------------------------ movimiento */
+
+/* punto que late: "esto está pasando ahora" */
+.ts-pulse-ring { animation: ts-pulse 1.9s cubic-bezier(0, 0, .2, 1) infinite; opacity: .75; }
+@keyframes ts-pulse {
+  0%   { transform: scale(1);   opacity: .7; }
+  70%  { transform: scale(2.4); opacity: 0; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+/* brillo que cruza una tarjeta destacada al aparecer */
+.ts-sheen { position: relative; overflow: hidden; }
+.ts-sheen::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(105deg, transparent 38%, color-mix(in srgb, #fff 34%, transparent) 50%, transparent 62%);
+  transform: translateX(-130%);
+  pointer-events: none;
+}
+.ts-sheen:hover::after { animation: ts-sheen 0.85s var(--ease); }
+@keyframes ts-sheen { to { transform: translateX(130%); } }
+
+/* barra de carga fina arriba de una tarjeta que está refrescando */
+.ts-loading-bar { position: relative; }
+.ts-loading-bar::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: linear-gradient(90deg, transparent, var(--brand), transparent);
+  background-size: 40% 100%; background-repeat: no-repeat;
+  animation: ts-indeterminado 1.1s infinite linear;
+}
+@keyframes ts-indeterminado {
+  0%   { background-position: -40% 0; }
+  100% { background-position: 140% 0; }
+}
+
+/* el número de un indicador que acaba de cambiar da un golpecito */
+.ts-bump { animation: ts-bump .5s var(--ease); }
+@keyframes ts-bump {
+  0%   { transform: none; }
+  35%  { transform: translateY(-3px) scale(1.04); }
+  100% { transform: none; }
+}
+
+/* fondo WebGL: nunca captura el mouse ni se imprime */
+canvas[aria-hidden="true"] { -webkit-user-select: none; user-select: none; }
+@media print { canvas[aria-hidden="true"] { display: none; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
