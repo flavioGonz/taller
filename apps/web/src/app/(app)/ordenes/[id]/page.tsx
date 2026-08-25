@@ -126,7 +126,7 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
       />
 
       <div className="space-y-4 p-6">
-        <Link href="/ordenes" className="focus-ring inline-flex items-center gap-1.5 rounded text-[13px] text-[var(--muted)] hover:text-[var(--brand)]">
+        <Link href="/ordenes" className="focus-ring inline-flex min-h-[24px] items-center gap-1.5 rounded text-[13px] text-[var(--muted)] hover:text-[var(--brand)]">
           <ArrowLeft className="size-3.5" aria-hidden /> Volver a órdenes
         </Link>
 
@@ -139,9 +139,9 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
               <span
                 className="ts-badge"
                 style={{
-                  background: `color-mix(in srgb, ${WORKORDER_KIND_DEFS[data.kind]?.color ?? '#2563eb'} 14%, transparent)`,
-                  color: WORKORDER_KIND_DEFS[data.kind]?.color,
-                  borderColor: `color-mix(in srgb, ${WORKORDER_KIND_DEFS[data.kind]?.color ?? '#2563eb'} 34%, transparent)`,
+                  background: `color-mix(in srgb, ${WORKORDER_KIND_DEFS[data.kind]?.token ?? 'var(--brand)'} 14%, transparent)`,
+                  color: WORKORDER_KIND_DEFS[data.kind]?.token,
+                  borderColor: `color-mix(in srgb, ${WORKORDER_KIND_DEFS[data.kind]?.token ?? 'var(--brand)'} 34%, transparent)`,
                 }}
                 data-tooltip-id="ts-tip"
                 data-tooltip-content={WORKORDER_KIND_DEFS[data.kind]?.description}

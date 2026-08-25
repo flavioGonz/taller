@@ -80,7 +80,10 @@ function auditA11y(root: ParentNode, route: string): Finding[] {
 
   const smallTargets = [...root.querySelectorAll('button, a[href]')].filter((el) => {
     const r = (el as HTMLElement).getBoundingClientRect();
-    return r.width > 0 && r.height > 0 && (r.width < 24 || r.height < 24);
+    // Los enlaces sólo-para-lectores-de-pantalla miden 1×1 a propósito:
+    // no son objetivos táctiles y no cuentan para esta regla.
+    if (r.width <= 2 || r.height <= 2) return false;
+    return r.width < 24 || r.height < 24;
   });
   if (smallTargets.length > 2) {
     findings.push({
@@ -99,6 +102,9 @@ function auditA11y(root: ParentNode, route: string): Finding[] {
 function auditDesignSystem(root: ParentNode, route: string): Finding[] {
   const findings: Finding[] = [];
   const offenders = [...root.querySelectorAll<HTMLElement>('[style]')].filter((el) => {
+    // Un color que sale del dato (el color real del auto, el logo de una marca)
+    // no es una decisión de diseño: se marca con data-color-source y no cuenta.
+    if (el.hasAttribute('data-color-source')) return false;
     const s = el.getAttribute('style') ?? '';
     return /(^|;)\s*(color|background(-color)?|border-color)\s*:\s*(#|rgb)/i.test(s);
   });

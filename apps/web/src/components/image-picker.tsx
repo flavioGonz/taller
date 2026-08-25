@@ -90,6 +90,8 @@ export function ImagePicker({
         type="file"
         accept="image/*"
         className="sr-only"
+        aria-label={`Subir ${label.toLowerCase()}`}
+        tabIndex={-1}
         onChange={(e) => void pick(e.target.files?.[0])}
       />
     </span>

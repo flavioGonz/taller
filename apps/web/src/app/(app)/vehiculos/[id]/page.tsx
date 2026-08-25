@@ -101,7 +101,7 @@ export default function FichaVehiculoPage({ params }: { params: Promise<{ id: st
       />
 
       <div className="space-y-4 p-6">
-        <Link href="/vehiculos" className="focus-ring inline-flex items-center gap-1.5 rounded text-[13px] text-[var(--muted)] hover:text-[var(--brand)]">
+        <Link href="/vehiculos" className="focus-ring inline-flex min-h-[24px] items-center gap-1.5 rounded text-[13px] text-[var(--muted)] hover:text-[var(--brand)]">
           <ArrowLeft className="size-3.5" aria-hidden /> Volver a vehículos
         </Link>
 
@@ -137,7 +137,7 @@ export default function FichaVehiculoPage({ params }: { params: Promise<{ id: st
                     {[data.year, data.modelRef?.bodyType, data.color].filter(Boolean).join(' · ')}
                   </p>
                 </div>
-                {hex && <span className="size-6 rounded-full border-2 border-[var(--border-strong)]" style={{ background: hex }} data-tooltip-id="ts-tip" data-tooltip-content={`Color ${data.color}`} aria-label={`Color ${data.color}`} />}
+                {hex && <span className="size-6 rounded-full border-2 border-[var(--border-strong)]" style={{ background: hex }} data-color-source="vehiculo" data-tooltip-id="ts-tip" data-tooltip-content={`Color ${data.color}`} aria-label={`Color ${data.color}`} />}
               </div>
 
               <div className="grid gap-x-6 gap-y-2 text-[13px] sm:grid-cols-2 lg:grid-cols-3">
@@ -342,7 +342,7 @@ export default function FichaVehiculoPage({ params }: { params: Promise<{ id: st
                       return (
                         <motion.li key={w.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="p-3.5">
                           <div className="flex items-center gap-2">
-                            <span className="size-2.5 shrink-0 rounded-full" style={{ background: def.color }} aria-hidden />
+                            <span className="size-2.5 shrink-0 rounded-full" style={{ background: def.token }} aria-hidden />
                             <Link href={`/ordenes/${w.id}`} className="focus-ring rounded text-[13.5px] font-bold hover:underline">{w.number}</Link>
                             <span className="mono ml-auto text-[13px] font-semibold">{formatMoney(w.grandTotal)}</span>
                           </div>

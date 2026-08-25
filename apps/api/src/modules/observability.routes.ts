@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
+import { badRequest } from '../lib/errors.js';
 import { raiseInsight, flushInsights } from '../lib/insights.js';
 import { routeStats, queryStats } from '../plugins/observability.js';
 import { idParamSchema } from '@taller/shared';
@@ -60,6 +61,42 @@ export default async function observabilityRoutes(app: FastifyInstance) {
   app.post('/insights/:id/resolve', { preHandler: [app.authenticate, app.authorize('insight:write')] }, async (req) => {
     const { id } = idParamSchema.parse(req.params);
     return prisma.systemInsight.update({ where: { id }, data: { resolved: true } });
+  });
+
+  /**
+   * Resolver varios de una. Se puede pasar una lista de ids, o `all` con los
+   * mismos filtros del listado para cerrar todo un lote (por ejemplo, todos los
+   * INFO de un agente después de arreglar la causa).
+   */
+  app.post('/insights/resolve', { preHandler: [app.authenticate, app.authorize('insight:write')] }, async (req) => {
+    const body = (req.body ?? {}) as { ids?: string[]; all?: boolean; agent?: string; severity?: string; code?: string };
+
+    if (Array.isArray(body.ids) && body.ids.length > 0) {
+      const { count } = await prisma.systemInsight.updateMany({
+        where: { id: { in: body.ids.slice(0, 500) }, resolved: false },
+        data: { resolved: true },
+      });
+      return { resolved: count };
+    }
+
+    if (!body.all) throw badRequest('Indicá qué hallazgos resolver');
+
+    const { count } = await prisma.systemInsight.updateMany({
+      where: {
+        resolved: false,
+        ...(body.agent ? { agent: body.agent as never } : {}),
+        ...(body.severity ? { severity: body.severity as never } : {}),
+        ...(body.code ? { code: body.code } : {}),
+      },
+      data: { resolved: true },
+    });
+    return { resolved: count };
+  });
+
+  /** Vuelve a abrir un hallazgo cerrado por error. */
+  app.post('/insights/:id/reopen', { preHandler: [app.authenticate, app.authorize('insight:write')] }, async (req) => {
+    const { id } = idParamSchema.parse(req.params);
+    return prisma.systemInsight.update({ where: { id }, data: { resolved: false } });
   });
 
   // Métricas en vivo del proceso (para el panel de salud del sistema)

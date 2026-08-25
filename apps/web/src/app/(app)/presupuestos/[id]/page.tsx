@@ -140,7 +140,7 @@ export default function PresupuestoPage({ params }: { params: Promise<{ id: stri
       />
 
       <div className="space-y-4 p-6">
-        <Link href={`/ordenes/${data.workOrder.id}`} className="focus-ring inline-flex items-center gap-1.5 rounded text-[13px] text-[var(--muted)] hover:text-[var(--brand)]">
+        <Link href={`/ordenes/${data.workOrder.id}`} className="focus-ring inline-flex min-h-[24px] items-center gap-1.5 rounded text-[13px] text-[var(--muted)] hover:text-[var(--brand)]">
           <ArrowLeft className="size-3.5" aria-hidden /> OT {data.workOrder.number}
         </Link>
 

@@ -63,7 +63,7 @@ export function ProcessStepper({
 
   const cancelled = status === 'CANCELADO';
   const rejected = status === 'RECHAZADO';
-  const accent = cancelled ? 'var(--subtle)' : rejected ? 'var(--falla)' : def.color;
+  const accent = cancelled ? 'var(--subtle)' : rejected ? 'var(--falla)' : def.token;
   const done = status === 'ENTREGADO' ? steps.length : Math.max(0, index);
 
   const size = compact ? 30 : 44;
@@ -104,7 +104,14 @@ export function ProcessStepper({
             return (
               <li key={step.status} className="flex min-w-0 flex-1 flex-col items-center">
                 <Wrapper
-                  {...(reachable ? { type: 'button' as const, onClick: () => onSelect?.(step.status), disabled: busy } : {})}
+                  {...(reachable
+                    ? {
+                        type: 'button' as const,
+                        onClick: () => onSelect?.(step.status),
+                        disabled: busy,
+                        'aria-label': `Mover la orden a ${step.label}`,
+                      }
+                    : {})}
                   data-tooltip-id="ts-tip"
                   data-tooltip-content={`${step.label} — ${step.hint}${reachable ? ' · clic para mover la OT acá' : ''}`}
                   className={cn(
@@ -117,7 +124,7 @@ export function ProcessStepper({
                     height: size,
                     background: isDone || isCurrent ? accent : 'var(--surface)',
                     borderColor: isDone || isCurrent ? accent : 'var(--border-strong)',
-                    color: isDone || isCurrent ? '#fff' : 'var(--subtle)',
+                    color: isDone || isCurrent ? 'var(--on-kind)' : 'var(--subtle)',
                   }}
                 >
                   {/* pulso de la etapa actual */}
@@ -218,7 +225,7 @@ export function ProcessBar({
 }) {
   const def = WORKORDER_KIND_DEFS[kind] ?? WORKORDER_KIND_DEFS.REPARACION;
   const { percent, steps, index } = progressOf(kind, status);
-  const color = status === 'CANCELADO' ? 'var(--subtle)' : status === 'RECHAZADO' ? 'var(--falla)' : def.color;
+  const color = status === 'CANCELADO' ? 'var(--subtle)' : status === 'RECHAZADO' ? 'var(--falla)' : def.token;
 
   return (
     <div className="w-full">
@@ -255,7 +262,7 @@ export function ProcessBar({
 export function ProcessDots({ kind, status }: { kind: WorkOrderKind; status: WorkOrderStatus }) {
   const def = WORKORDER_KIND_DEFS[kind] ?? WORKORDER_KIND_DEFS.REPARACION;
   const { steps, index } = progressOf(kind, status);
-  const color = status === 'CANCELADO' ? 'var(--subtle)' : status === 'RECHAZADO' ? 'var(--falla)' : def.color;
+  const color = status === 'CANCELADO' ? 'var(--subtle)' : status === 'RECHAZADO' ? 'var(--falla)' : def.token;
   const done = status === 'ENTREGADO' ? steps.length : Math.max(0, index);
 
   const label = useMemo(

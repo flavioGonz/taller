@@ -64,16 +64,16 @@ export default function IngresosPage() {
                 <Link
                   href={`/ingresos/${c.slug}`}
                   className="focus-ring group relative block h-full overflow-hidden rounded-[var(--r-lg)] border border-[var(--border)] bg-[var(--surface)] p-5 transition hover:-translate-y-1 hover:shadow-[var(--sh-lg)]"
-                  style={{ borderTopColor: c.color, borderTopWidth: 3 }}
+                  style={{ borderTopColor: c.token, borderTopWidth: 3 }}
                 >
                   <span
                     className="absolute -right-8 -top-8 size-32 rounded-full opacity-[0.07] transition-transform duration-500 group-hover:scale-150"
-                    style={{ background: c.color }}
+                    style={{ background: c.token }}
                     aria-hidden
                   />
                   <span
                     className="grid size-12 place-items-center rounded-[var(--r)]"
-                    style={{ background: `color-mix(in srgb, ${c.color} 12%, transparent)`, color: c.color }}
+                    style={{ background: `color-mix(in srgb, ${c.token} 12%, transparent)`, color: c.token }}
                   >
                     <Glyph name={c.icon} className="size-6" />
                   </span>
@@ -83,7 +83,7 @@ export default function IngresosPage() {
 
                   <div className="mt-4 flex items-end justify-between">
                     <span>
-                      <span className="mono block text-[30px] font-extrabold leading-none" style={{ color: c.color }}>
+                      <span className="mono block text-[30px] font-extrabold leading-none" style={{ color: c.token }}>
                         {counts.loading && !counts.data ? '—' : n}
                       </span>
                       <span className="text-[11.5px] text-[var(--muted)]">
@@ -125,7 +125,7 @@ export default function IngresosPage() {
                     <span className="flex items-center gap-2">
                       <span
                         className="grid size-8 shrink-0 place-items-center rounded-[var(--r-sm)]"
-                        style={{ background: `color-mix(in srgb, ${c.color} 12%, transparent)`, color: c.color }}
+                        style={{ background: `color-mix(in srgb, ${c.token} 12%, transparent)`, color: c.token }}
                       >
                         <Glyph name={c.icon} className="size-4" />
                       </span>
@@ -135,7 +135,7 @@ export default function IngresosPage() {
                           {def ? `${def.steps.length} etapas` : ''}
                         </span>
                       </span>
-                      <span className="mono text-[18px] font-extrabold" style={{ color: n > 0 ? c.color : 'var(--subtle)' }}>{n}</span>
+                      <span className="mono text-[18px] font-extrabold" style={{ color: n > 0 ? c.token : 'var(--subtle)' }}>{n}</span>
                     </span>
                     <p className="text-[11.5px] leading-snug text-[var(--muted)]">{c.description}</p>
                   </Link>

@@ -53,7 +53,7 @@ export function KindChip({ kind, size = 'md' }: { kind: WorkOrderKind; size?: 's
         'inline-flex items-center gap-1.5 rounded-full font-semibold',
         size === 'sm' ? 'px-2 py-0.5 text-[10.5px]' : 'px-2.5 py-1 text-[11.5px]',
       )}
-      style={{ background: `color-mix(in srgb, ${def.color} 12%, transparent)`, color: def.color }}
+      style={{ background: `color-mix(in srgb, ${def.token} 12%, transparent)`, color: def.token }}
       data-tooltip-id="ts-tip"
       data-tooltip-content={def.description}
     >
@@ -85,7 +85,7 @@ export function WorkOrderCard({ row, compact = false }: { row: WorkOrderRow; com
       className="focus-ring group block overflow-hidden rounded-[var(--r)] border border-[var(--border)] bg-[var(--surface)] transition hover:-translate-y-0.5 hover:border-[var(--brand)] hover:shadow-[var(--sh-md)]"
     >
       {/* banda del tipo de ingreso */}
-      <span className="block h-1 w-full" style={{ background: def.color }} aria-hidden />
+      <span className="block h-1 w-full" style={{ background: def.token }} aria-hidden />
 
       <div className={cn('space-y-2.5', compact ? 'p-3' : 'p-3.5')}>
         <div className="flex items-start justify-between gap-2">

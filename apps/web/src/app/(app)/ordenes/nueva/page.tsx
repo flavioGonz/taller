@@ -134,7 +134,7 @@ export default function NuevaOrdenPage() {
                   >
                     <span
                       className="grid size-8 shrink-0 place-items-center rounded-[10px]"
-                      style={{ background: `color-mix(in srgb, ${def.color} 15%, transparent)`, color: def.color }}
+                      style={{ background: `color-mix(in srgb, ${def.token} 15%, transparent)`, color: def.token }}
                     >
                       <Icon className="size-4" />
                     </span>

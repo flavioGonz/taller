@@ -50,6 +50,7 @@ export function ColorDot({ color, size = 14 }: { color?: string | null; size?: n
       <span
         className="inline-block shrink-0 rounded-full border border-[var(--border-strong)]"
         style={{ width: size, height: size, background: hex ?? 'var(--surface-2)' }}
+        data-color-source="vehiculo"
         aria-hidden
       />
       <span className="truncate">{color}</span>

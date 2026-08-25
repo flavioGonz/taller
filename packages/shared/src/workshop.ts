@@ -189,49 +189,70 @@ export interface ChecklistItem {
   group: string;
   /** 'bool' = está / no está · 'state' = bueno/regular/malo · 'text' = observación */
   kind: 'bool' | 'state' | 'text';
+  /** Ícono de lucide-react: se reconoce el ítem sin leer la etiqueta. */
+  icon?: string;
+  /** Ayuda corta de qué mirar. */
+  hint?: string;
 }
+
+/** Color e ícono de cada grupo de checklist, para que se distingan de un vistazo. */
+export interface ChecklistGroupStyle { icon: string; tone: 'brand' | 'ok' | 'warn' | 'danger' | 'violeta' | 'cian' }
+
+export const CHECKLIST_GROUPS: Record<string, ChecklistGroupStyle> = {
+  Exterior: { icon: 'Car', tone: 'brand' },
+  Interior: { icon: 'Armchair', tone: 'violeta' },
+  'Mecánica': { icon: 'Cog', tone: 'warn' },
+  Herramientas: { icon: 'Wrench', tone: 'warn' },
+  Seguridad: { icon: 'ShieldCheck', tone: 'danger' },
+  'Documentación': { icon: 'FileText', tone: 'cian' },
+  Equipamiento: { icon: 'Package', tone: 'brand' },
+  'Estado general': { icon: 'Gauge', tone: 'ok' },
+  Trabajo: { icon: 'Wrench', tone: 'brand' },
+  'Verificación': { icon: 'ClipboardCheck', tone: 'warn' },
+  Entrega: { icon: 'KeyRound', tone: 'ok' },
+};
 
 /** Inventario del vehículo al ingresar: lo que después evita discusiones. */
 export const INTAKE_CHECKLIST: readonly ChecklistItem[] = [
-  { code: 'rueda_auxilio', label: 'Rueda de auxilio', group: 'Herramientas', kind: 'bool' },
-  { code: 'gato', label: 'Gato', group: 'Herramientas', kind: 'bool' },
-  { code: 'llave_ruedas', label: 'Llave de ruedas', group: 'Herramientas', kind: 'bool' },
-  { code: 'herramientas', label: 'Juego de herramientas', group: 'Herramientas', kind: 'bool' },
-  { code: 'matafuego', label: 'Matafuego', group: 'Seguridad', kind: 'bool' },
-  { code: 'balizas', label: 'Balizas / triángulos', group: 'Seguridad', kind: 'bool' },
-  { code: 'chaleco', label: 'Chaleco reflectivo', group: 'Seguridad', kind: 'bool' },
-  { code: 'botiquin', label: 'Botiquín', group: 'Seguridad', kind: 'bool' },
-  { code: 'libreta', label: 'Libreta de propiedad', group: 'Documentación', kind: 'bool' },
-  { code: 'seguro', label: 'Póliza de seguro', group: 'Documentación', kind: 'bool' },
-  { code: 'itv', label: 'Inspección técnica vigente', group: 'Documentación', kind: 'bool' },
-  { code: 'manual', label: 'Manual del vehículo', group: 'Documentación', kind: 'bool' },
-  { code: 'llave_extra', label: 'Llave adicional', group: 'Documentación', kind: 'bool' },
-  { code: 'estereo', label: 'Estéreo / multimedia', group: 'Equipamiento', kind: 'bool' },
-  { code: 'alfombras', label: 'Alfombras', group: 'Equipamiento', kind: 'bool' },
-  { code: 'tapa_combustible', label: 'Tapa de combustible', group: 'Equipamiento', kind: 'bool' },
-  { code: 'antena', label: 'Antena', group: 'Equipamiento', kind: 'bool' },
-  { code: 'tapa_ruedas', label: 'Tapas de ruedas', group: 'Equipamiento', kind: 'bool' },
-  { code: 'objetos_valor', label: 'Objetos de valor en el interior', group: 'Equipamiento', kind: 'text' },
-  { code: 'neumaticos', label: 'Estado de neumáticos', group: 'Estado general', kind: 'state' },
-  { code: 'limpieza', label: 'Estado de limpieza', group: 'Estado general', kind: 'state' },
-  { code: 'testigos', label: 'Testigos encendidos en el tablero', group: 'Estado general', kind: 'text' },
+  { code: 'rueda_auxilio', label: 'Rueda de auxilio', group: 'Herramientas', kind: 'bool', icon: 'CircleDot' },
+  { code: 'gato', label: 'Gato', group: 'Herramientas', kind: 'bool', icon: 'ArrowUpFromLine' },
+  { code: 'llave_ruedas', label: 'Llave de ruedas', group: 'Herramientas', kind: 'bool', icon: 'Wrench' },
+  { code: 'herramientas', label: 'Juego de herramientas', group: 'Herramientas', kind: 'bool', icon: 'Wrench' },
+  { code: 'matafuego', label: 'Matafuego', group: 'Seguridad', kind: 'bool', icon: 'FireExtinguisher' },
+  { code: 'balizas', label: 'Balizas / triángulos', group: 'Seguridad', kind: 'bool', icon: 'TriangleAlert' },
+  { code: 'chaleco', label: 'Chaleco reflectivo', group: 'Seguridad', kind: 'bool', icon: 'Shirt' },
+  { code: 'botiquin', label: 'Botiquín', group: 'Seguridad', kind: 'bool', icon: 'BriefcaseMedical' },
+  { code: 'libreta', label: 'Libreta de propiedad', group: 'Documentación', kind: 'bool', icon: 'FileText' },
+  { code: 'seguro', label: 'Póliza de seguro', group: 'Documentación', kind: 'bool', icon: 'ShieldCheck' },
+  { code: 'itv', label: 'Inspección técnica vigente', group: 'Documentación', kind: 'bool', icon: 'BadgeCheck' },
+  { code: 'manual', label: 'Manual del vehículo', group: 'Documentación', kind: 'bool', icon: 'BookOpen' },
+  { code: 'llave_extra', label: 'Llave adicional', group: 'Documentación', kind: 'bool', icon: 'KeyRound' },
+  { code: 'estereo', label: 'Estéreo / multimedia', group: 'Equipamiento', kind: 'bool', icon: 'Radio' },
+  { code: 'alfombras', label: 'Alfombras', group: 'Equipamiento', kind: 'bool', icon: 'Layers' },
+  { code: 'tapa_combustible', label: 'Tapa de combustible', group: 'Equipamiento', kind: 'bool', icon: 'Fuel' },
+  { code: 'antena', label: 'Antena', group: 'Equipamiento', kind: 'bool', icon: 'RadioTower' },
+  { code: 'tapa_ruedas', label: 'Tapas de ruedas', group: 'Equipamiento', kind: 'bool', icon: 'CircleDot' },
+  { code: 'objetos_valor', label: 'Objetos de valor en el interior', group: 'Equipamiento', kind: 'text', icon: 'Gem' },
+  { code: 'neumaticos', label: 'Estado de neumáticos', group: 'Estado general', kind: 'state', icon: 'CircleDot' },
+  { code: 'limpieza', label: 'Estado de limpieza', group: 'Estado general', kind: 'state', icon: 'Sparkles' },
+  { code: 'testigos', label: 'Testigos encendidos en el tablero', group: 'Estado general', kind: 'text', icon: 'Lightbulb' },
 ];
 
 /** Control de calidad antes de entregar. */
 export const QUALITY_CHECKLIST: readonly ChecklistItem[] = [
-  { code: 'trabajo_completo', label: 'El trabajo pedido está completo', group: 'Trabajo', kind: 'bool' },
-  { code: 'sin_fugas', label: 'Sin pérdidas de fluidos', group: 'Trabajo', kind: 'bool' },
-  { code: 'torque_ruedas', label: 'Torque de ruedas verificado', group: 'Trabajo', kind: 'bool' },
-  { code: 'niveles', label: 'Niveles completos (aceite, refrigerante, freno)', group: 'Trabajo', kind: 'bool' },
-  { code: 'luces', label: 'Luces y señales funcionando', group: 'Trabajo', kind: 'bool' },
-  { code: 'testigos_apagados', label: 'Sin testigos encendidos', group: 'Trabajo', kind: 'bool' },
-  { code: 'prueba_ruta', label: 'Prueba de ruta realizada', group: 'Verificación', kind: 'bool' },
-  { code: 'sin_ruidos', label: 'Sin ruidos anormales', group: 'Verificación', kind: 'bool' },
-  { code: 'frenos_ok', label: 'Frenado correcto', group: 'Verificación', kind: 'bool' },
-  { code: 'herramientas_devueltas', label: 'Herramientas del cliente devueltas', group: 'Entrega', kind: 'bool' },
-  { code: 'repuestos_viejos', label: 'Repuestos sustituidos a disposición del cliente', group: 'Entrega', kind: 'bool' },
-  { code: 'interior_limpio', label: 'Interior limpio (fundas y papeles retirados)', group: 'Entrega', kind: 'bool' },
-  { code: 'exterior_lavado', label: 'Exterior lavado', group: 'Entrega', kind: 'bool' },
+  { code: 'trabajo_completo', label: 'El trabajo pedido está completo', group: 'Trabajo', kind: 'bool', icon: 'ClipboardCheck' },
+  { code: 'sin_fugas', label: 'Sin pérdidas de fluidos', group: 'Trabajo', kind: 'bool', icon: 'Droplets' },
+  { code: 'torque_ruedas', label: 'Torque de ruedas verificado', group: 'Trabajo', kind: 'bool', icon: 'Wrench' },
+  { code: 'niveles', label: 'Niveles completos (aceite, refrigerante, freno)', group: 'Trabajo', kind: 'bool', icon: 'Gauge' },
+  { code: 'luces', label: 'Luces y señales funcionando', group: 'Trabajo', kind: 'bool', icon: 'Lightbulb' },
+  { code: 'testigos_apagados', label: 'Sin testigos encendidos', group: 'Trabajo', kind: 'bool', icon: 'CircleOff' },
+  { code: 'prueba_ruta', label: 'Prueba de ruta realizada', group: 'Verificación', kind: 'bool', icon: 'Route' },
+  { code: 'sin_ruidos', label: 'Sin ruidos anormales', group: 'Verificación', kind: 'bool', icon: 'Ear' },
+  { code: 'frenos_ok', label: 'Frenado correcto', group: 'Verificación', kind: 'bool', icon: 'Disc' },
+  { code: 'herramientas_devueltas', label: 'Herramientas del cliente devueltas', group: 'Entrega', kind: 'bool', icon: 'Wrench' },
+  { code: 'repuestos_viejos', label: 'Repuestos sustituidos a disposición del cliente', group: 'Entrega', kind: 'bool', icon: 'Package' },
+  { code: 'interior_limpio', label: 'Interior limpio (fundas y papeles retirados)', group: 'Entrega', kind: 'bool', icon: 'Sparkles' },
+  { code: 'exterior_lavado', label: 'Exterior lavado', group: 'Entrega', kind: 'bool', icon: 'Droplets' },
 ];
 
 export const CHECK_STATES = ['BUENO', 'REGULAR', 'MALO'] as const;
@@ -346,7 +367,10 @@ export interface KindDefinition {
   description: string;
   /** Nombre del ícono de lucide-react que le corresponde. */
   icon: string;
+  /** Hex de referencia (PDF, exportaciones). */
   color: string;
+  /** Token CSS del tema: es lo que usa la interfaz. */
+  token: string;
   steps: FlowStep[];
 }
 
@@ -371,6 +395,7 @@ export const WORKORDER_KIND_DEFS: Record<WorkOrderKind, KindDefinition> = {
     description: 'Service por kilometraje o tiempo, con trabajo y precio conocidos de antemano.',
     icon: 'Wrench',
     color: '#2563eb',
+    token: 'var(--kind-mantenimiento)',
     steps: [S.recepcion, S.presupuesto, S.aprobado, S.proceso, S.calidad, S.lavado, S.finalizado, S.entregado],
   },
   REPARACION: {
@@ -380,6 +405,7 @@ export const WORKORDER_KIND_DEFS: Record<WorkOrderKind, KindDefinition> = {
     description: 'El vehículo entra con una falla: primero se diagnostica y recién después se presupuesta.',
     icon: 'Hammer',
     color: '#f97316',
+    token: 'var(--kind-reparacion)',
     steps: [S.recepcion, S.diagnostico, S.presupuesto, S.aprobado, S.repuesto, S.proceso, S.calidad, S.lavado, S.finalizado, S.entregado],
   },
   DIAGNOSTICO: {
@@ -389,6 +415,7 @@ export const WORKORDER_KIND_DEFS: Record<WorkOrderKind, KindDefinition> = {
     description: 'Sólo revisar y dictaminar. Puede terminar sin trabajo, con el informe entregado.',
     icon: 'Stethoscope',
     color: '#8b5cf6',
+    token: 'var(--kind-diagnostico)',
     steps: [S.recepcion, S.diagnostico, S.presupuesto, S.finalizado, S.entregado],
   },
   CHAPA_PINTURA: {
@@ -398,6 +425,7 @@ export const WORKORDER_KIND_DEFS: Record<WorkOrderKind, KindDefinition> = {
     description: 'Trabajo de carrocería: el peritaje fotográfico y el secado mandan los tiempos.',
     icon: 'SprayCan',
     color: '#0ea5e9',
+    token: 'var(--kind-chapa)',
     steps: [S.recepcion, S.diagnostico, S.presupuesto, S.aprobado, S.repuesto, S.proceso, S.calidad, S.lavado, S.finalizado, S.entregado],
   },
   NEUMATICOS: {
@@ -407,6 +435,7 @@ export const WORKORDER_KIND_DEFS: Record<WorkOrderKind, KindDefinition> = {
     description: 'Entrada rápida: se cotiza en el momento y se resuelve en el día.',
     icon: 'CircleDot',
     color: '#14b8a6',
+    token: 'var(--kind-neumaticos)',
     steps: [S.recepcion, S.presupuesto, S.aprobado, S.proceso, S.calidad, S.finalizado, S.entregado],
   },
   GARANTIA: {
@@ -416,6 +445,7 @@ export const WORKORDER_KIND_DEFS: Record<WorkOrderKind, KindDefinition> = {
     description: 'Vuelve un trabajo hecho por el taller. No se presupuesta: se corrige.',
     icon: 'ShieldCheck',
     color: '#16a34a',
+    token: 'var(--kind-garantia)',
     steps: [S.recepcion, S.diagnostico, S.proceso, S.calidad, S.finalizado, S.entregado],
   },
   SINIESTRO: {
@@ -425,6 +455,7 @@ export const WORKORDER_KIND_DEFS: Record<WorkOrderKind, KindDefinition> = {
     description: 'Con compañía de seguros de por medio: el peritaje y la autorización son de ellos.',
     icon: 'FileWarning',
     color: '#dc2626',
+    token: 'var(--kind-siniestro)',
     steps: [S.recepcion, S.diagnostico, S.presupuesto, S.aprobado, S.repuesto, S.proceso, S.calidad, S.lavado, S.finalizado, S.entregado],
   },
   PREENTREGA: {
@@ -434,6 +465,7 @@ export const WORKORDER_KIND_DEFS: Record<WorkOrderKind, KindDefinition> = {
     description: 'Revisión completa antes de entregar o comprar un vehículo. Termina en informe.',
     icon: 'ClipboardCheck',
     color: '#64748b',
+    token: 'var(--kind-preentrega)',
     steps: [S.recepcion, S.diagnostico, S.calidad, S.finalizado, S.entregado],
   },
 };
@@ -492,17 +524,17 @@ export const colorHex = (label?: string | null) =>
 
 /** Detalles visuales que se anotan al registrar el vehículo. */
 export const VEHICLE_FEATURES: readonly ChecklistItem[] = [
-  { code: 'polarizado', label: 'Vidrios polarizados', group: 'Exterior', kind: 'bool' },
-  { code: 'llantas_aleacion', label: 'Llantas de aleación', group: 'Exterior', kind: 'bool' },
-  { code: 'barras_techo', label: 'Barras de techo', group: 'Exterior', kind: 'bool' },
-  { code: 'estribos', label: 'Estribos laterales', group: 'Exterior', kind: 'bool' },
-  { code: 'cobertor_caja', label: 'Cobertor de caja / lona', group: 'Exterior', kind: 'bool' },
-  { code: 'enganche', label: 'Enganche de remolque', group: 'Exterior', kind: 'bool' },
-  { code: 'calcomanias', label: 'Calcomanías o rotulado', group: 'Exterior', kind: 'bool' },
-  { code: 'pintura', label: 'Estado de la pintura', group: 'Exterior', kind: 'state' },
-  { code: 'tapizado', label: 'Estado del tapizado', group: 'Interior', kind: 'state' },
-  { code: 'multimedia_extra', label: 'Multimedia no original', group: 'Interior', kind: 'bool' },
-  { code: 'alarma', label: 'Alarma / rastreo', group: 'Interior', kind: 'bool' },
-  { code: 'gnc', label: 'Equipo de GNC', group: 'Mecánica', kind: 'bool' },
-  { code: 'modificaciones', label: 'Modificaciones visibles', group: 'Mecánica', kind: 'text' },
+  { code: 'polarizado', label: 'Vidrios polarizados', group: 'Exterior', kind: 'bool', icon: 'SunDim', hint: 'Lámina o vidrio de fábrica' },
+  { code: 'llantas_aleacion', label: 'Llantas de aleación', group: 'Exterior', kind: 'bool', icon: 'CircleDot', hint: 'Distinto de las llantas de chapa' },
+  { code: 'barras_techo', label: 'Barras de techo', group: 'Exterior', kind: 'bool', icon: 'Luggage' },
+  { code: 'estribos', label: 'Estribos laterales', group: 'Exterior', kind: 'bool', icon: 'Footprints' },
+  { code: 'cobertor_caja', label: 'Cobertor de caja / lona', group: 'Exterior', kind: 'bool', icon: 'Container', hint: 'Sólo en pick-ups' },
+  { code: 'enganche', label: 'Enganche de remolque', group: 'Exterior', kind: 'bool', icon: 'Link2' },
+  { code: 'calcomanias', label: 'Calcomanías o rotulado', group: 'Exterior', kind: 'bool', icon: 'Sticker', hint: 'Ojo al pintar o pulir' },
+  { code: 'pintura', label: 'Estado de la pintura', group: 'Exterior', kind: 'state', icon: 'Paintbrush' },
+  { code: 'tapizado', label: 'Estado del tapizado', group: 'Interior', kind: 'state', icon: 'Armchair' },
+  { code: 'multimedia_extra', label: 'Multimedia no original', group: 'Interior', kind: 'bool', icon: 'Radio', hint: 'Pantalla o estéreo agregado' },
+  { code: 'alarma', label: 'Alarma / rastreo', group: 'Interior', kind: 'bool', icon: 'Siren', hint: 'Puede cortar el arranque' },
+  { code: 'gnc', label: 'Equipo de GNC', group: 'Mecánica', kind: 'bool', icon: 'Fuel', hint: 'Verificar oblea y vencimiento' },
+  { code: 'modificaciones', label: 'Modificaciones visibles', group: 'Mecánica', kind: 'text', icon: 'Wrench', hint: 'Suspensión, escape, motor…' },
 ];

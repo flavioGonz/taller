@@ -26,6 +26,23 @@
   --falla:#dc2626; --falla-bg:#fef2f2; --falla-bd:#fecaca;
   --warn:#b45309; --warn-bg:#fffbeb; --warn-bd:#fde68a;
   --info:#1d4ed8; --info-bg:#eff6ff; --info-bd:#bfdbfe;
+  --violeta:#6d28d9; --violeta-bg:#f5f3ff; --violeta-bd:#ddd6fe;
+  --cian:#0e7490; --cian-bg:#ecfeff; --cian-bd:#a5f3fc;
+
+  /* Color propio de cada tipo de ingreso: el recorrido, la banda de la tarjeta
+     y el chip usan estos tokens, nunca un hex suelto en el código. */
+  --kind-mantenimiento:#2563eb;
+  --kind-reparacion:#f97316;
+  --kind-diagnostico:#8b5cf6;
+  --kind-chapa:#0ea5e9;
+  --kind-neumaticos:#14b8a6;
+  --kind-garantia:#16a34a;
+  --kind-siniestro:#dc2626;
+  --kind-preentrega:#64748b;
+  --kind-particulares:#2563eb;
+  --kind-aseguradora:#7c3aed;
+  /* Tinta sobre un color de tipo de ingreso (nodo del recorrido, chips llenos) */
+  --on-kind:#ffffff;
 
   --r-sm:8px; --r:12px; --r-lg:16px; --r-xl:20px;
   --sh-xs:0 1px 2px rgba(16,24,40,.05);
@@ -66,6 +83,22 @@
   --falla:#f87171; --falla-bg:#3a1620; --falla-bd:#5b2330;
   --warn:#fbbf24; --warn-bg:#352a12; --warn-bd:#5a4516;
   --info:#60a5fa; --info-bg:#16263f; --info-bd:#274064;
+  --violeta:#c4b5fd; --violeta-bg:#241a3d; --violeta-bd:#3b2a63;
+  --cian:#67e8f9; --cian-bg:#0d2b33; --cian-bd:#14454f;
+
+  /* En oscuro se levantan para que sigan leyéndose sobre el fondo azul */
+  --kind-mantenimiento:#60a5fa;
+  --kind-reparacion:#fb923c;
+  --kind-diagnostico:#a78bfa;
+  --kind-chapa:#38bdf8;
+  --kind-neumaticos:#2dd4bf;
+  --kind-garantia:#4ade80;
+  --kind-siniestro:#f87171;
+  --kind-preentrega:#94a3b8;
+  --kind-particulares:#60a5fa;
+  --kind-aseguradora:#c4b5fd;
+  /* En oscuro los colores son pasteles: la tinta va oscura para que se lea */
+  --on-kind:#0b1220;
 
   --sh-xs:0 1px 2px rgba(0,0,0,.4);
   --sh-sm:0 1px 3px rgba(0,0,0,.45);
@@ -318,6 +351,8 @@ textarea.ts-input { min-height: 78px; resize: vertical; }
 .ts-dt th[aria-sort]:hover { color: var(--text); }
 .ts-dt th[aria-sort="ascending"], .ts-dt th[aria-sort="descending"] { color: var(--brand-700); }
 .ts-dt-wrap { max-height: var(--dt-max, none); overflow: auto; border-radius: var(--r); }
+/* Los enlaces de una celda son objetivos táctiles: WCAG pide 24px de alto. */
+.ts-dt td a, .ts-table td a { display: inline-flex; align-items: center; min-height: 24px; }
 
 /* ------------------------------------------------------------------- Tabs */
 .ts-tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 4px; border-radius: var(--r); background: var(--surface-3); border: 1px solid var(--border); }

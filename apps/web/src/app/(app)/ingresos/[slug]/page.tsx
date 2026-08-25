@@ -44,7 +44,7 @@ export default function IngresoPage({ params }: { params: Promise<{ slug: string
       />
 
       <div className="space-y-4 p-6">
-        <Link href="/ingresos" className="focus-ring inline-flex items-center gap-1.5 rounded text-[13px] text-[var(--muted)] hover:text-[var(--brand)]">
+        <Link href="/ingresos" className="focus-ring inline-flex min-h-[24px] items-center gap-1.5 rounded text-[13px] text-[var(--muted)] hover:text-[var(--brand)]">
           <ArrowLeft className="size-3.5" aria-hidden /> Ingresos
         </Link>
 
@@ -53,7 +53,7 @@ export default function IngresoPage({ params }: { params: Promise<{ slug: string
             <span className="flex items-start gap-3 lg:w-[340px] lg:shrink-0">
               <span
                 className="grid size-11 shrink-0 place-items-center rounded-[var(--r)]"
-                style={{ background: `color-mix(in srgb, ${channel.color} 12%, transparent)`, color: channel.color }}
+                style={{ background: `color-mix(in srgb, ${channel.token} 12%, transparent)`, color: channel.token }}
               >
                 <Glyph name={channel.icon} className="size-5" />
               </span>
@@ -82,7 +82,7 @@ export default function IngresoPage({ params }: { params: Promise<{ slug: string
           storageKey={slug}
           fixedQuery={intakeQuery(channel)}
           hideKindFilter={channel.kinds.length === 1}
-          accent={channel.color}
+          accent={channel.token}
         />
       </div>
     </>

@@ -71,13 +71,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <ToastProvider>
       <CommandPalette>
-        <a
-          href="#contenido"
-          className="focus-ring sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[90] focus:rounded-[var(--r)] focus:bg-[var(--surface)] focus:px-4 focus:py-2 focus:text-[13px] focus:font-semibold focus:shadow-[var(--sh-lg)]"
-        >
-          Saltar al contenido
-        </a>
-
         <div className="flex min-h-dvh">
           <Sidebar collapsed={collapsed} onToggle={toggle} />
           <div className="flex min-w-0 flex-1 flex-col">

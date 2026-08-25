@@ -233,6 +233,7 @@ function VehicleCard({ v, actions }: { v: Row; actions?: React.ReactNode }) {
             <span
               className="absolute right-2 top-2 size-5 rounded-full border-2 border-white shadow"
               style={{ background: hex }}
+              data-color-source="vehiculo"
               data-tooltip-id="ts-tip"
               data-tooltip-content={`Color ${v.color}`}
               aria-label={`Color ${v.color}`}

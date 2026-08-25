@@ -118,7 +118,7 @@ export function Topbar({
                   <span className="truncate">{c.label}</span>
                 ) : (
                   <>
-                    <Link href={c.href} className="focus-ring truncate rounded hover:text-[var(--brand)]">{c.label}</Link>
+                    <Link href={c.href} className="focus-ring inline-flex min-h-[24px] items-center truncate rounded hover:text-[var(--brand)]">{c.label}</Link>
                     <ChevronRight className="size-3 shrink-0" aria-hidden />
                   </>
                 )}
