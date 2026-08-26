@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useCallback, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import {
   PhoneCall, Check, Star, Filter, Tag, MessageSquare, Plus, AlertTriangle, CalendarClock,
@@ -10,6 +10,7 @@ import { Topbar } from '@/components/layout/topbar';
 import { Button, Card, CardBody, CardHeader, CardTitle, Select, Textarea, Input, Badge, Stat } from '@/components/ui';
 import { DataTable, type Column } from '@/components/data-table';
 import { Modal } from '@/components/modal';
+import { useToast } from '@/components/toast';
 import { useApi } from '@/hooks/use-api';
 import { api, qs } from '@/lib/api';
 import { customerName, formatDate, relativeTime } from '@/lib/utils';
@@ -35,7 +36,12 @@ export default function PostventaPage() {
   const [closing, setClosing] = useState<FollowUp | null>(null);
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Los errores salen como aviso flotante, no como cartel pegado a la página
+  const toast = useToast();
+  const setError = useCallback(
+    (m: string | null) => { if (m) toast.error('No se pudo guardar el seguimiento', m); },
+    [toast],
+  );
   const { data, loading, error: loadError, refetch } = useApi<Paginated<FollowUp>>(`/follow-ups${qs({ page: 1, limit: 50, status, kind })}`);
   const stats = useApi<Stats>('/follow-ups/stats');
   const customers = useApi<Paginated<CustomerOpt>>(creating ? '/customers?page=1&limit=200' : null);
@@ -334,8 +340,6 @@ export default function PostventaPage() {
             onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
             placeholder="Ej: avisarle que llegó el repuesto que estaba esperando."
           />
-
-          {error && <p role="alert" className="rounded-[var(--r)] bg-[var(--falla-bg)] px-3 py-2 text-[12.5px] text-[var(--falla)]">{error}</p>}
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => setCreating(false)}>Cancelar</Button>

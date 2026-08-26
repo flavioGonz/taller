@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, use, useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft, Save, ShieldCheck, FileCheck2, Wrench, Wallet, CalendarClock, Users, Plus,
@@ -118,8 +118,11 @@ export default function AseguradoraPage({ params }: { params: Promise<{ id: stri
   const [t, setT] = useState<Terms>(EMPTY);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
+  // Los errores salen como aviso flotante, no como cartel pegado a la página
+  const setError = useCallback(
+    (m: string | null) => { if (m) toast.error('No se pudo guardar', m); },
+    [toast],
+  );
   const [contactOpen, setContactOpen] = useState(false);
   const [contactDraft, setContactDraft] = useState({ name: '', role: '', phone: '', email: '' });
   const [removing, setRemoving] = useState<Contact | null>(null);
@@ -234,8 +237,6 @@ export default function AseguradoraPage({ params }: { params: Promise<{ id: stri
         <Link href="/aseguradoras" className="focus-ring inline-flex min-h-[24px] items-center gap-1.5 rounded text-[13px] text-[var(--muted)] hover:text-[var(--brand)]">
           <ArrowLeft className="size-3.5" aria-hidden /> Aseguradoras
         </Link>
-
-        {error && <p role="alert" className="rounded-[var(--r)] bg-[var(--falla-bg)] px-3 py-2 text-[13px] text-[var(--falla)]">{error}</p>}
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           {/* ------------------------------------------------ condiciones */}

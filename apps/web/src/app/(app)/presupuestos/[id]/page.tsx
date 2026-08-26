@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { useCallback, use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft, Send, Check, X, Copy, Ban, AlertTriangle, Clock, ShieldCheck,
@@ -58,7 +58,11 @@ export default function PresupuestoPage({ params }: { params: Promise<{ id: stri
   const [decidedBy, setDecidedBy] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Los errores salen como aviso flotante, no como cartel pegado a la página
+  const setError = useCallback(
+    (m: string | null) => { if (m) toast.error('No se pudo completar la acción', m); },
+    [toast],
+  );
   const [sendOpen, setSendOpen] = useState(false);
 
   // Condiciones comerciales que salen impresas en el PDF
@@ -143,8 +147,6 @@ export default function PresupuestoPage({ params }: { params: Promise<{ id: stri
         <Link href={`/ordenes/${data.workOrder.id}`} className="focus-ring inline-flex min-h-[24px] items-center gap-1.5 rounded text-[13px] text-[var(--muted)] hover:text-[var(--brand)]">
           <ArrowLeft className="size-3.5" aria-hidden /> OT {data.workOrder.number}
         </Link>
-
-        {error && <p role="alert" className="rounded-[var(--r)] bg-[var(--falla-bg)] px-3 py-2 text-[13px] text-[var(--falla)]">{error}</p>}
 
         <div className="grid gap-4 lg:grid-cols-3">
           <div className="space-y-4 lg:col-span-2">

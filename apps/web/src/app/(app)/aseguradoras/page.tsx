@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useMemo, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import {
   ShieldCheck, Plus, Search, Car, FileCheck2, Clock, Wallet, ChevronRight, AlertTriangle,
@@ -10,6 +10,7 @@ import {
   Button, Card, CardBody, CardHeader, CardTitle, Input, Skeleton, EmptyState, Badge, Stat,
 } from '@/components/ui';
 import { Modal } from '@/components/modal';
+import { useToast } from '@/components/toast';
 import { useApi } from '@/hooks/use-api';
 import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/use-auth';
@@ -52,8 +53,12 @@ export default function AseguradorasPage() {
   const [creating, setCreating] = useState(false);
   const [nombre, setNombre] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
+  // Los errores salen como aviso flotante, no como cartel pegado a la página
+  const toast = useToast();
+  const setError = useCallback(
+    (m: string | null) => { if (m) toast.error('No se pudo guardar', m); },
+    [toast],
+  );
   const { data, loading, refetch } = useApi<Insurer[]>('/insurers');
   const { data: pending } = useApi<PendingCase[]>('/insurers/board/pending');
 
@@ -234,7 +239,6 @@ export default function AseguradorasPage() {
             autoFocus
             placeholder="Ej: Nueva Compañía de Seguros"
           />
-          {error && <p role="alert" className="rounded-[var(--r)] bg-[var(--falla-bg)] px-3 py-2 text-[12.5px] text-[var(--falla)]">{error}</p>}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => setCreating(false)}>Cancelar</Button>
             <Button type="submit" loading={busy} disabled={!nombre.trim()}>Crear y configurar</Button>

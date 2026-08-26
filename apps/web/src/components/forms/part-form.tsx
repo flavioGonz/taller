@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { Hash, Tag, Factory, Layers, Coins, DollarSign, TriangleAlert, Barcode, MapPin, Percent } from 'lucide-react';
 import { Button, Input, Select } from '@/components/ui';
+import { useDefaultTax } from '@/hooks/use-settings';
 import { api } from '@/lib/api';
 
 export interface PartRecord {
@@ -17,6 +18,7 @@ export function PartForm({
 }: {
   value?: PartRecord; suppliers?: SupplierOpt[]; onSaved: () => void; onCancel?: () => void;
 }) {
+  const ivaDefecto = useDefaultTax();
   const editing = !!value?.id;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +35,7 @@ export function PartForm({
       unit: fd.get('unit') || 'UN',
       cost: Number(fd.get('cost') ?? 0),
       price: Number(fd.get('price') ?? 0),
-      taxPct: Number(fd.get('taxPct') ?? 22),
+      taxPct: Number(fd.get('taxPct') ?? ivaDefecto),
       minStock: Number(fd.get('minStock') ?? 0),
       location: fd.get('location') || undefined,
       supplierId: fd.get('supplierId') || undefined,
@@ -67,7 +69,7 @@ export function PartForm({
       <Input label="Ubicación" name="location" icon={<MapPin className="size-3.5" aria-hidden />} defaultValue={value?.location ?? ''} tip="Estante o caja donde está guardado" />
       <Input label="Costo" name="cost" type="number" step="0.01" min={0} icon={<Coins className="size-3.5" aria-hidden />} defaultValue={value?.cost ? String(value.cost) : '0'} tip="Se actualiza solo al recibir un pedido del proveedor" />
       <Input label="Precio de venta" name="price" type="number" step="0.01" min={0} icon={<DollarSign className="size-3.5" aria-hidden />} defaultValue={value?.price ? String(value.price) : '0'} />
-      <Input label="IVA (%)" name="taxPct" type="number" step="0.01" min={0} max={100} icon={<Percent className="size-3.5" aria-hidden />} defaultValue={value?.taxPct ? String(value.taxPct) : '22'} />
+      <Input label="IVA (%)" name="taxPct" type="number" step="0.01" min={0} max={100} icon={<Percent className="size-3.5" aria-hidden />} defaultValue={value?.taxPct ? String(value.taxPct) : String(ivaDefecto)} />
       <Input label="Stock mínimo" name="minStock" type="number" step="1" min={0} icon={<TriangleAlert className="size-3.5" aria-hidden />} defaultValue={value?.minStock ? String(value.minStock) : '0'} tip="Por debajo de este valor aparece en el tablero" />
       <Select label="Unidad" name="unit" defaultValue={value?.unit ?? 'UN'} icon={<Layers className="size-3.5" aria-hidden />}>
         <option value="UN">Unidad</option><option value="LT">Litro</option><option value="KG">Kilo</option>

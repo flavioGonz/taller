@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Plus, Trash2, Save, User, Car, Gauge, Flag, MessageSquare, Wrench, Hammer,
@@ -10,7 +10,9 @@ import { Topbar } from '@/components/layout/topbar';
 import { Button, Card, CardBody, CardHeader, CardTitle, Input, Select, Textarea, Table, Th, Td } from '@/components/ui';
 import { ProcessStepper } from '@/components/process-stepper';
 import { api } from '@/lib/api';
+import { useDefaultTax, useLaborRate } from '@/hooks/use-settings';
 import { useApi } from '@/hooks/use-api';
+import { useToast } from '@/components/toast';
 import { customerName, cn } from '@/lib/utils';
 import { computeTotals, formatMoney, PRIORITIES, WORKORDER_KINDS, WORKORDER_KIND_DEFS, type WorkOrderKind } from '@taller/shared';
 
@@ -42,8 +44,12 @@ export default function NuevaOrdenPage() {
   const [mileageIn, setMileageIn] = useState('');
   const [items, setItems] = useState<Item[]>([]);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
+  // Los errores salen como aviso flotante, no como cartel pegado a la página
+  const toast = useToast();
+  const setError = useCallback(
+    (m: string | null) => { if (m) toast.error('No se pudo crear la orden', m); },
+    [toast],
+  );
   const customers = useApi<CustomerOpt[]>('/customers');
   const vehicles = useApi<{ rows: VehicleOpt[] }>(customerId ? `/vehicles?page=1&limit=100&customerId=${customerId}` : null);
   const services = useApi<ServiceOpt[]>('/services');
@@ -72,8 +78,23 @@ export default function NuevaOrdenPage() {
 
   const totals = useMemo(() => computeTotals(items), [items]);
 
+  // El IVA y el valor hora salen de Configuración, no de un número escrito acá
+  const ivaDefecto = useDefaultTax();
+  const valorHora = useLaborRate();
+
   const addItem = (kind: Item['kind']) =>
-    setItems((prev) => [...prev, { kind, description: '', quantity: 1, unitPrice: 0, taxPct: 22, discountPct: 0 }]);
+    setItems((prev) => [
+      ...prev,
+      {
+        kind,
+        description: '',
+        quantity: 1,
+        // la mano de obra arranca con el valor hora del taller
+        unitPrice: kind === 'MANO_OBRA' ? valorHora : 0,
+        taxPct: ivaDefecto,
+        discountPct: 0,
+      },
+    ]);
 
   const updateItem = (idx: number, patch: Partial<Item>) =>
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
@@ -105,7 +126,6 @@ export default function NuevaOrdenPage() {
     <>
       <Topbar title="Nueva orden de trabajo" />
       <form onSubmit={onSubmit} className="space-y-4 p-6">
-        {error && <p role="alert" className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-500">{error}</p>}
 
         {/* ------------------------------- tipo de ingreso: define el flujo */}
         <Card>
@@ -221,7 +241,7 @@ export default function NuevaOrdenPage() {
                           value={item.serviceId ?? ''}
                           onChange={(e) => {
                             const s = (services.data ?? []).find((x) => x.id === e.target.value);
-                            updateItem(idx, { serviceId: e.target.value, description: s?.name ?? '', unitPrice: Number(s?.price ?? 0), taxPct: Number(s?.taxPct ?? 22) });
+                            updateItem(idx, { serviceId: e.target.value, description: s?.name ?? '', unitPrice: Number(s?.price ?? 0), taxPct: Number(s?.taxPct ?? ivaDefecto) });
                           }}
                         >
                           <option value="">Seleccionar servicio…</option>
@@ -233,7 +253,7 @@ export default function NuevaOrdenPage() {
                           value={item.partId ?? ''}
                           onChange={(e) => {
                             const p = (parts.data?.rows ?? []).find((x) => x.id === e.target.value);
-                            updateItem(idx, { partId: e.target.value, description: p?.name ?? '', unitPrice: Number(p?.price ?? 0), taxPct: Number(p?.taxPct ?? 22) });
+                            updateItem(idx, { partId: e.target.value, description: p?.name ?? '', unitPrice: Number(p?.price ?? 0), taxPct: Number(p?.taxPct ?? ivaDefecto) });
                           }}
                         >
                           <option value="">Seleccionar repuesto…</option>

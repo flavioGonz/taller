@@ -82,6 +82,8 @@ export function WorkOrderCard({ row, compact = false }: { row: WorkOrderRow; com
   return (
     <Link
       href={`/ordenes/${row.id}`}
+      // el arrastre lo maneja el contenedor del tablero, no el enlace
+      draggable={false}
       className="focus-ring group block overflow-hidden rounded-[var(--r)] border border-[var(--border)] bg-[var(--surface)] transition hover:-translate-y-0.5 hover:border-[var(--brand)] hover:shadow-[var(--sh-md)]"
     >
       {/* banda del tipo de ingreso */}

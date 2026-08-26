@@ -11,7 +11,7 @@ export type AgendaKind = (typeof AGENDA_KINDS)[number];
 
 export type AgendaFieldKind =
   | 'text' | 'textarea' | 'number' | 'money' | 'date' | 'datetime' | 'time'
-  | 'select' | 'cliente' | 'vehiculo' | 'tecnico' | 'bahia' | 'proveedor' | 'orden';
+  | 'select' | 'cliente' | 'vehiculo' | 'tecnico' | 'bahia' | 'proveedor' | 'orden' | 'pedido';
 
 export interface AgendaField {
   name: string;
@@ -105,7 +105,8 @@ export const AGENDA_KIND_DEFS: Record<AgendaKind, AgendaKindDefinition> = {
     defaultMinutes: 30,
     fields: [
       { name: 'supplierId', label: 'Proveedor', kind: 'proveedor', required: true, icon: 'Factory' },
-      { name: 'reference', label: 'Nº de pedido o remito', kind: 'text', icon: 'Hash' },
+      { name: 'partsOrderId', label: 'Pedido', kind: 'pedido', icon: 'ClipboardList', hint: 'Al elegirlo, la fecha esperada del pedido se actualiza sola' },
+      { name: 'reference', label: 'Nº de remito', kind: 'text', icon: 'Hash' },
       { name: 'title', label: 'Qué llega', kind: 'text', wide: true, icon: 'Package', placeholder: 'Ej: faro VW Gol + grillas' },
       { name: 'amount', label: 'Importe del remito', kind: 'money', icon: 'Wallet' },
       { name: 'notes', label: 'Observaciones', kind: 'textarea', wide: true, icon: 'StickyNote' },

@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { useCallback, use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, ClipboardCheck, Fuel, Gauge } from 'lucide-react';
@@ -10,6 +10,7 @@ import { PhotoAnnotator, type DamageDraft, type Photo } from '@/components/photo
 import { Checklist, type ChecklistValue } from '@/components/checklist';
 import { SignaturePad } from '@/components/signature-pad';
 import { useApi } from '@/hooks/use-api';
+import { useToast } from '@/components/toast';
 import { api } from '@/lib/api';
 import { uploadPhoto } from '@/lib/upload';
 import { customerName } from '@/lib/utils';
@@ -52,8 +53,12 @@ export default function RecepcionPage({ params }: { params: Promise<{ id: string
   const [signedDoc, setSignedDoc] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
+  // Los errores salen como aviso flotante, no como cartel pegado a la página
+  const toast = useToast();
+  const setError = useCallback(
+    (m: string | null) => { if (m) toast.error('No se pudo guardar la recepción', m); },
+    [toast],
+  );
   useEffect(() => {
     if (insp.data) {
       setPhotos(insp.data.photos ?? []);
@@ -151,8 +156,6 @@ export default function RecepcionPage({ params }: { params: Promise<{ id: string
         <Link href={`/ordenes/${id}`} className="focus-ring inline-flex min-h-[24px] items-center gap-1.5 rounded text-[13px] text-[var(--muted)] hover:text-[var(--brand)]">
           <ArrowLeft className="size-3.5" aria-hidden /> Volver a la OT
         </Link>
-
-        {error && <p role="alert" className="rounded-[var(--r)] bg-[var(--falla-bg)] px-3 py-2 text-[13px] text-[var(--falla)]">{error}</p>}
 
         <Card>
           <CardBody className="flex flex-wrap items-center gap-x-8 gap-y-3">

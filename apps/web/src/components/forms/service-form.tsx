@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { Hash, Wrench, Layers, Clock, DollarSign, Percent, StickyNote } from 'lucide-react';
 import { Button, Input, Textarea } from '@/components/ui';
+import { useDefaultTax } from '@/hooks/use-settings';
 import { api } from '@/lib/api';
 
 export interface ServiceRecord {
@@ -11,6 +12,7 @@ export interface ServiceRecord {
 }
 
 export function ServiceForm({ value, onSaved, onCancel }: { value?: ServiceRecord; onSaved: () => void; onCancel?: () => void }) {
+  const ivaDefecto = useDefaultTax();
   const editing = !!value?.id;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +27,7 @@ export function ServiceForm({ value, onSaved, onCancel }: { value?: ServiceRecor
       category: fd.get('category') || undefined,
       estimatedHours: fd.get('estimatedHours') ? Number(fd.get('estimatedHours')) : undefined,
       price: Number(fd.get('price')),
-      taxPct: Number(fd.get('taxPct') ?? 22),
+      taxPct: Number(fd.get('taxPct') ?? ivaDefecto),
     };
     setSaving(true);
     setError(null);
@@ -49,7 +51,7 @@ export function ServiceForm({ value, onSaved, onCancel }: { value?: ServiceRecor
       <Input label="Categoría" name="category" icon={<Layers className="size-3.5" aria-hidden />} defaultValue={value?.category ?? ''} />
       <Input label="Horas estimadas" name="estimatedHours" type="number" step="0.25" min={0} icon={<Clock className="size-3.5" aria-hidden />} defaultValue={value?.estimatedHours ? String(value.estimatedHours) : ''} tip="Sirve para calcular la carga del taller y la mano de obra" />
       <Input label="Precio" name="price" type="number" step="0.01" min={0} icon={<DollarSign className="size-3.5" aria-hidden />} required defaultValue={value?.price ? String(value.price) : ''} />
-      <Input label="IVA (%)" name="taxPct" type="number" step="0.01" min={0} max={100} icon={<Percent className="size-3.5" aria-hidden />} defaultValue={value?.taxPct ? String(value.taxPct) : '22'} />
+      <Input label="IVA (%)" name="taxPct" type="number" step="0.01" min={0} max={100} icon={<Percent className="size-3.5" aria-hidden />} defaultValue={value?.taxPct ? String(value.taxPct) : String(ivaDefecto)} />
       <div className="md:col-span-3">
         <Textarea label="Descripción" name="description" icon={<StickyNote className="size-3.5" aria-hidden />} rows={2} defaultValue={value?.description ?? ''} />
       </div>

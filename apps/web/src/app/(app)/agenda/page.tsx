@@ -20,6 +20,7 @@ import {
 import { Topbar } from '@/components/layout/topbar';
 import { Button, Card, CardBody, Select, Badge } from '@/components/ui';
 import { Modal } from '@/components/modal';
+import { useToast } from '@/components/toast';
 import { AgendaDialog } from '@/components/agenda-dialog';
 import { useApi } from '@/hooks/use-api';
 import { useSocketEvent } from '@/hooks/use-socket';
@@ -31,6 +32,7 @@ import {
   type AgendaKind, type WorkOrderStatus,
 } from '@taller/shared';
 import { useAuth } from '@/hooks/use-auth';
+import { useSettings } from '@/hooks/use-settings';
 import './calendar.css';
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -77,6 +79,8 @@ function estadoTone(status: string) {
 
 export default function AgendaPage() {
   const { can } = useAuth();
+  const { settings } = useSettings();
+  const op = settings.operation;
   const router = useRouter();
   const calRef = useRef<InstanceType<typeof FullCalendar>>(null);
 
@@ -94,7 +98,12 @@ export default function AgendaPage() {
   const [showPromised, setShowPromised] = useState(true);
   const [selected, setSelected] = useState<Appointment | null>(null);
   const [creating, setCreating] = useState<{ at: Date | null } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // Los errores salen como aviso flotante, no como cartel pegado a la página
+  const toast = useToast();
+  const setError = useCallback(
+    (m: string | null) => { if (m) toast.error('No se pudo actualizar la agenda', m); },
+    [toast],
+  );
   const [busy, setBusy] = useState(false);
 
   const appts = useApi<Appointment[]>(`/appointments${qs({ from: range.from, to: range.to })}`);
@@ -227,6 +236,29 @@ export default function AgendaPage() {
   const toggleKind = (k: AgendaKind) =>
     setOcultos((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]));
 
+  /** La grilla del calendario sale de Configuración → Operación. */
+  const grilla = useMemo(() => {
+    const hh = (t: string, delta = 0) => {
+      const [h = '0', m = '0'] = t.split(':');
+      const total = Math.max(0, Math.min(24 * 60, Number(h) * 60 + Number(m) + delta * 60));
+      return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}:00`;
+    };
+    const dias = op.workDays.length ? op.workDays : [1, 2, 3, 4, 5];
+    const horario = op.lunchFrom && op.lunchTo
+      ? [
+          { daysOfWeek: dias, startTime: op.opensAt, endTime: op.lunchFrom },
+          { daysOfWeek: dias, startTime: op.lunchTo, endTime: op.closesAt },
+        ]
+      : [{ daysOfWeek: dias, startTime: op.opensAt, endTime: op.closesAt }];
+    return {
+      // se deja una hora de margen a cada lado para que entre lo que se corre
+      desde: hh(op.opensAt, -1),
+      hasta: hh(op.closesAt, 2),
+      paso: op.slotMinutes >= 60 ? '01:00:00' : op.slotMinutes >= 30 ? '00:30:00' : '00:15:00',
+      horario,
+    };
+  }, [op]);
+
   const defSel = selected ? (AGENDA_KIND_DEFS[selected.kind] ?? AGENDA_KIND_DEFS.OTRO) : null;
 
   return (
@@ -253,7 +285,6 @@ export default function AgendaPage() {
       />
 
       <div className="space-y-4 p-6">
-        {error && <p role="alert" className="rounded-[var(--r)] bg-[var(--falla-bg)] px-3 py-2 text-[13px] text-[var(--falla)]">{error}</p>}
 
         {/* ---------------------------------------------- filtros por tipo */}
         <div className="flex flex-wrap items-center gap-2">
@@ -317,17 +348,14 @@ export default function AgendaPage() {
               buttonText={{ month: 'Mes', week: 'Semana', day: 'Día', list: 'Lista' }}
               height="auto"
               nowIndicator
-              slotMinTime="07:00:00"
-              slotMaxTime="20:00:00"
-              slotDuration="00:30:00"
+              slotMinTime={grilla.desde}
+              slotMaxTime={grilla.hasta}
+              slotDuration={grilla.paso}
               expandRows
               firstDay={1}
               weekNumbers={false}
               dayMaxEvents={4}
-              businessHours={[
-                { daysOfWeek: [1, 2, 3, 4, 5], startTime: '08:00', endTime: '18:00' },
-                { daysOfWeek: [6], startTime: '08:00', endTime: '13:00' },
-              ]}
+              businessHours={grilla.horario}
               selectable={cargables.length > 0}
               selectMirror
               editable={cargables.length > 0}

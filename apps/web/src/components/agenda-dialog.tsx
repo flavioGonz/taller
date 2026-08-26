@@ -81,6 +81,8 @@ export function AgendaDialog({
     open && needs('proveedor') ? '/inventory/suppliers' : null);
   const orders = useApi<{ rows: { id: string; number: string; status: string; vehicle: { plate: string } }[] }>(
     open && needs('orden') ? '/work-orders?page=1&limit=100' : null);
+  const partsOrders = useApi<{ rows: { id: string; number: string; status: string; supplierId: string | null; supplier?: { name: string } | null }[] }>(
+    open && needs('pedido') ? '/parts-orders?page=1&limit=100' : null);
 
   useEffect(() => {
     if (!open) return;
@@ -163,8 +165,22 @@ export function AgendaDialog({
         const list = Array.isArray(raw) ? raw : (raw?.rows ?? []);
         return list.map((p) => ({ id: p.id, label: p.name }));
       }
-      case 'orden':
-        return (orders.data?.rows ?? []).map((o) => ({ id: o.id, label: `${o.number} · ${o.vehicle.plate}` }));
+      case 'orden': {
+        const list = orders.data?.rows ?? [];
+        // Para una entrega interesan las que ya están listas o casi
+        const listas = kind === 'ENTREGA'
+          ? list.filter((o) => ['FINALIZADO', 'LAVADO', 'CONTROL_CALIDAD', 'EN_PROCESO'].includes(o.status))
+          : list;
+        return (listas.length ? listas : list).map((o) => ({ id: o.id, label: `${o.number} · ${o.vehicle.plate}` }));
+      }
+      case 'pedido': {
+        const list = partsOrders.data?.rows ?? [];
+        const prov = values.supplierId;
+        return list
+          .filter((o) => !prov || o.supplierId === prov)
+          .filter((o) => !['RECIBIDO', 'CANCELADO'].includes(o.status))
+          .map((o) => ({ id: o.id, label: `${o.number}${o.supplier?.name ? ' · ' + o.supplier.name : ''}` }));
+      }
       default:
         return (f.options ?? []).map((o) => ({ id: o.value, label: o.label }));
     }
@@ -173,7 +189,7 @@ export function AgendaDialog({
   function renderField(f: AgendaField) {
     const invalid = touched && f.required && !String(values[f.name] ?? '').trim();
     const icon = <Glyph name={f.icon} className="size-3.5" />;
-    const selectLike = ['select', 'cliente', 'vehiculo', 'tecnico', 'bahia', 'proveedor', 'orden'].includes(f.kind);
+    const selectLike = ['select', 'cliente', 'vehiculo', 'tecnico', 'bahia', 'proveedor', 'orden', 'pedido'].includes(f.kind);
 
     if (f.kind === 'textarea') {
       return (

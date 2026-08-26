@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, type FormEvent } from 'react';
+import { useCallback, use, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
@@ -16,6 +16,7 @@ import { ProcessStepper } from '@/components/process-stepper';
 import { Checklist, type ChecklistValue } from '@/components/checklist';
 import { SignaturePad } from '@/components/signature-pad';
 import { useApi } from '@/hooks/use-api';
+import { useToast } from '@/components/toast';
 import { useSocketEvent, useWorkOrderRoom } from '@/hooks/use-socket';
 import { api } from '@/lib/api';
 import { customerName, formatDate, relativeTime, cn } from '@/lib/utils';
@@ -71,7 +72,12 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
 
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  // Los errores salen como aviso flotante, no como cartel pegado a la página
+  const toast = useToast();
+  const setError = useCallback(
+    (m: string | null) => { if (m) toast.error('No se pudo completar la acción', m); },
+    [toast],
+  );
   const [panel, setPanel] = useState<'none' | 'quality' | 'delivery' | 'work'>('none');
   const [qaChecklist, setQaChecklist] = useState<ChecklistValue>({});
   const [signature, setSignature] = useState<string | null>(null);
@@ -142,8 +148,6 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
         <Link href="/ordenes" className="focus-ring inline-flex min-h-[24px] items-center gap-1.5 rounded text-[13px] text-[var(--muted)] hover:text-[var(--brand)]">
           <ArrowLeft className="size-3.5" aria-hidden /> Volver a órdenes
         </Link>
-
-        {error && <p role="alert" className="rounded-[var(--r)] bg-[var(--falla-bg)] px-3 py-2 text-[13px] text-[var(--falla)]">{error}</p>}
 
         {/* ------------------------- recorrido según el tipo de ingreso ----- */}
         <Card>

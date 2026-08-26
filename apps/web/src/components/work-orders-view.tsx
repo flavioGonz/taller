@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Search, LayoutGrid, List, Columns3, Filter, X, Clock, AlertTriangle,
   Car, Wrench, Package, Fingerprint, User, ShieldCheck, CircleDollarSign, Timer, RefreshCw,
+  GripVertical,
 } from 'lucide-react';
 import { Button, Card, CardBody, Input, Select, Skeleton, Badge, Stat, Segmented, EmptyState } from '@/components/ui';
 import { DataTable, type Column } from '@/components/data-table';
@@ -13,13 +14,16 @@ import { WorkOrderCard, KindChip, type WorkOrderRow } from '@/components/work-or
 import { ProcessDots, ProcessBar } from '@/components/process-stepper';
 import { VehicleIdentity } from '@/components/vehicle-bits';
 import { StatusBadge, PriorityDot } from '@/components/status-badge';
+import { StepDialog } from '@/components/step-dialog';
 import { useApi } from '@/hooks/use-api';
 import { useSocketEvent } from '@/hooks/use-socket';
-import { qs } from '@/lib/api';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/components/toast';
+import { api, qs } from '@/lib/api';
 import { customerName, formatDate, relativeTime, cn } from '@/lib/utils';
 import {
   SOCKET_EVENTS, WORKORDER_STATUSES, STATUS_LABELS, BOARD_STATUSES,
-  WORKORDER_KIND_DEFS, WORKORDER_KINDS, formatMoney,
+  WORKORDER_KIND_DEFS, WORKORDER_KINDS, formatMoney, canTransition, stepFormFor,
   type Paginated, type WorkOrderKind, type WorkOrderStatus,
 } from '@taller/shared';
 
@@ -48,7 +52,15 @@ export function WorkOrdersView({
   accent?: string;
   hideKindFilter?: boolean;
 }) {
+  const { can } = useAuth();
+  const toast = useToast();
   const [view, setView] = useState<View>('board');
+
+  // Arrastrar una tarjeta de columna a columna mueve la OT de etapa
+  const [arrastrando, setArrastrando] = useState<WorkOrderRow | null>(null);
+  const [destino, setDestino] = useState<WorkOrderStatus | null>(null);
+  const [paso, setPaso] = useState<{ row: WorkOrderRow; status: WorkOrderStatus } | null>(null);
+  const puedeMover = can('workorder:status');
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('');
   const [kind, setKind] = useState('');
@@ -108,6 +120,30 @@ export function WorkOrdersView({
     for (const wo of rows) map.get(wo.status)?.push(wo);
     return map;
   }, [rows]);
+
+  /** Se puede soltar acá si la máquina de estados lo permite. */
+  const admite = (col: WorkOrderStatus) =>
+    !!arrastrando && arrastrando.status !== col && canTransition(arrastrando.status, col);
+
+  /** Al soltar: si la etapa pide datos se abre su formulario; si no, se mueve directo. */
+  async function soltarEn(col: WorkOrderStatus) {
+    const row = arrastrando;
+    setArrastrando(null);
+    setDestino(null);
+    if (!row || !canTransition(row.status, col)) return;
+
+    if (stepFormFor(col)) {
+      setPaso({ row, status: col });
+      return;
+    }
+    try {
+      await api.post(`/work-orders/${row.id}/status`, { status: col });
+      toast.ok(`${row.number} pasó a ${STATUS_LABELS[col]}`);
+      open.refetch();
+    } catch (e) {
+      toast.error('No se pudo mover la orden', (e as Error).message);
+    }
+  }
 
   const filtersOn = !!(q || status || kind || tech || lateOnly);
   const loadError = view === 'table' ? table.error : open.error;
@@ -357,6 +393,13 @@ export function WorkOrdersView({
                 {BOARD_STATUSES.map((c) => <Skeleton key={c} className="h-72 w-[290px] shrink-0" />)}
               </div>
             ) : (
+              <>
+              {puedeMover && (
+                <p className="mb-2 flex items-center gap-1.5 text-[12px] text-[var(--muted)]">
+                  <GripVertical className="size-3.5" aria-hidden />
+                  Arrastrá una tarjeta a otra columna para mover la orden de etapa. Si esa etapa pide datos, se abre su formulario.
+                </p>
+              )}
               <div className="flex gap-3 overflow-x-auto pb-4">
                 {BOARD_STATUSES.map((col) => {
                   const items = grouped.get(col) ?? [];
@@ -364,8 +407,22 @@ export function WorkOrdersView({
                   return (
                     <section
                       key={col}
-                      className="flex w-[290px] shrink-0 flex-col rounded-[var(--r)] border border-[var(--border)] bg-[var(--surface-2)]/70 p-2"
+                      className={cn(
+                        'flex w-[290px] shrink-0 flex-col rounded-[var(--r)] border p-2 transition',
+                        destino === col && admite(col)
+                          ? 'border-[var(--brand)] bg-[var(--brand-soft)] ring-2 ring-[var(--brand-200)]'
+                          : 'border-[var(--border)] bg-[var(--surface-2)]/70',
+                        arrastrando && !admite(col) && arrastrando.status !== col && 'opacity-45',
+                      )}
                       aria-label={STATUS_LABELS[col]}
+                      onDragOver={(e) => {
+                        if (!admite(col)) return;
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                        if (destino !== col) setDestino(col);
+                      }}
+                      onDragLeave={() => setDestino((d) => (d === col ? null : d))}
+                      onDrop={(e) => { e.preventDefault(); void soltarEn(col); }}
                     >
                       <header className="flex items-center justify-between gap-2 px-1.5 py-1.5">
                         <h2 className="truncate text-[11.5px] font-bold uppercase tracking-wide text-[var(--muted)]">
@@ -383,9 +440,23 @@ export function WorkOrdersView({
                               key={wo.id}
                               layout
                               initial={{ opacity: 0, scale: 0.96 }}
-                              animate={{ opacity: 1, scale: 1 }}
+                              animate={{
+                                opacity: arrastrando?.id === wo.id ? 0.4 : 1,
+                                scale: arrastrando?.id === wo.id ? 0.97 : 1,
+                              }}
                               exit={{ opacity: 0, scale: 0.96 }}
                               transition={{ duration: 0.18 }}
+                              draggable={puedeMover}
+                              onDragStart={(e) => {
+                                setArrastrando(wo);
+                                const dt = (e as unknown as React.DragEvent).dataTransfer;
+                                if (dt) {
+                                  dt.effectAllowed = 'move';
+                                  dt.setData('text/plain', wo.id);
+                                }
+                              }}
+                              onDragEnd={() => { setArrastrando(null); setDestino(null); }}
+                              className={cn(puedeMover && 'cursor-grab active:cursor-grabbing')}
                             >
                               <WorkOrderCard row={wo} compact />
                             </motion.div>
@@ -393,7 +464,7 @@ export function WorkOrdersView({
                         </AnimatePresence>
                         {items.length === 0 && (
                           <p className="rounded-[var(--r)] border border-dashed border-[var(--border-strong)] px-2 py-7 text-center text-[11.5px] text-[var(--subtle)]">
-                            Sin vehículos acá
+                            {arrastrando && admite(col) ? 'Soltá acá' : 'Sin vehículos acá'}
                           </p>
                         )}
                       </div>
@@ -401,6 +472,7 @@ export function WorkOrdersView({
                   );
                 })}
               </div>
+              </>
             )
           )}
 
@@ -462,6 +534,17 @@ export function WorkOrdersView({
           )}
         </motion.div>
       </AnimatePresence>
+
+      {/* Al soltar en una columna que pide datos, se abre el paso correspondiente */}
+      <StepDialog
+        open={!!paso}
+        onClose={() => setPaso(null)}
+        workOrderId={paso?.row.id ?? ''}
+        workOrderKind={paso?.row.kind ?? 'REPARACION'}
+        status={paso?.status ?? null}
+        current={paso ? { technicianId: paso.row.technician?.id, bayId: paso.row.bay?.id, promisedAt: paso.row.promisedAt } : undefined}
+        onDone={() => { setPaso(null); open.refetch(); }}
+      />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { CommandPalette } from '@/components/command-palette';
 import { Shortcuts } from '@/components/shortcuts';
 import { ComponentInspector } from '@/components/observability/component-inspector';
 import { useAuth } from '@/hooks/use-auth';
+import { SettingsProvider } from '@/hooks/use-settings';
 import { Skeleton } from '@/components/ui';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -70,6 +71,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <ToastProvider>
+      <SettingsProvider>
       <CommandPalette>
         <div className="flex min-h-dvh">
           <Sidebar collapsed={collapsed} onToggle={toggle} />
@@ -90,6 +92,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           />
         </div>
       </CommandPalette>
+      </SettingsProvider>
     </ToastProvider>
   );
 }

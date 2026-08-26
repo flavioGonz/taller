@@ -81,6 +81,10 @@ export default async function appointmentRoutes(app: FastifyInstance) {
       data: { ...data, tenantId, plate: data.plate?.toUpperCase(), createdById: req.currentUser!.id },
       include,
     });
+
+    // El evento no queda suelto en el calendario: se refleja en lo que representa
+    await reflejar(created, tenantId, req.currentUser!.id);
+
     emitTenant(tenantId, SOCKET_EVENTS.APPOINTMENT_CHANGED, created);
     reply.code(201);
     return created;
@@ -106,6 +110,7 @@ export default async function appointmentRoutes(app: FastifyInstance) {
       data: { ...data, ...(data.plate ? { plate: data.plate.toUpperCase() } : {}) },
       include,
     });
+    await reflejar(updated, tenantId, req.currentUser!.id);
     emitTenant(tenantId, SOCKET_EVENTS.APPOINTMENT_CHANGED, updated);
     return updated;
   });
@@ -159,4 +164,54 @@ export default async function appointmentRoutes(app: FastifyInstance) {
     emitTenant(tenantId, SOCKET_EVENTS.APPOINTMENT_CHANGED, updated);
     return { ok: true };
   });
+}
+
+/**
+ * Un evento de agenda no es sólo una fila del calendario: representa algo que
+ * ya existe en el sistema. Acá se refleja para que las dos vistas coincidan.
+ *
+ * - Una **entrega al cliente** fija la fecha comprometida de la OT y deja el
+ *   movimiento en el historial.
+ * - Una **llegada de proveedor** anota la fecha esperada del pedido.
+ *
+ * Si algo falla no se rompe el alta del evento: la agenda es la fuente y el
+ * reflejo es una comodidad.
+ */
+async function reflejar(
+  ev: { id: string; kind: string; scheduledAt: Date; workOrderId: string | null; partsOrderId: string | null; title: string | null },
+  tenantId: string,
+  userId: string,
+) {
+  try {
+    if (ev.kind === 'ENTREGA' && ev.workOrderId) {
+      const wo = await prisma.workOrder.findFirst({
+        where: { id: ev.workOrderId, tenantId },
+        select: { id: true, promisedAt: true, status: true },
+      });
+      if (wo && wo.promisedAt?.getTime() !== ev.scheduledAt.getTime()) {
+        await prisma.workOrder.update({ where: { id: wo.id }, data: { promisedAt: ev.scheduledAt } });
+        await prisma.workOrderStatusHistory.create({
+          data: {
+            tenantId,
+            workOrderId: wo.id,
+            fromStatus: wo.status,
+            toStatus: wo.status,
+            note: `Entrega agendada para el ${ev.scheduledAt.toLocaleString('es-UY', { timeZone: 'America/Montevideo' })}`,
+            userId,
+          },
+        });
+        emitTenant(tenantId, SOCKET_EVENTS.WORKORDER_UPDATED, { id: wo.id });
+      }
+    }
+
+    if (ev.kind === 'ENTREGA_PROVEEDOR' && ev.partsOrderId) {
+      await prisma.partsOrder.updateMany({
+        where: { id: ev.partsOrderId, tenantId },
+        data: { expectedAt: ev.scheduledAt },
+      });
+    }
+  } catch (err) {
+    // el reflejo es best-effort: se registra y se sigue
+    console.warn('[agenda] no se pudo reflejar el evento', ev.id, (err as Error).message);
+  }
 }
