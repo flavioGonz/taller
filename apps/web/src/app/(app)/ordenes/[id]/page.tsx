@@ -10,6 +10,7 @@ import {
   PackageSearch, Droplets, PartyPopper, Ban, CircleHelp,
 } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
+import { LoadError } from '@/components/load-error';
 import { Button, Card, CardBody, CardHeader, CardTitle, Skeleton, Table, Th, Td, Textarea, Badge, Input, Select } from '@/components/ui';
 import { StatusBadge } from '@/components/status-badge';
 import { ProcessStepper } from '@/components/process-stepper';
@@ -66,7 +67,7 @@ const StepGlyph = ({ name, className }: { name?: string; className?: string }) =
 export default function OrdenDetallePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { can } = useAuth();
-  const { data, loading, refetch } = useApi<Detail>(`/work-orders/${id}`);
+  const { data, loading, refetch, error } = useApi<Detail>(`/work-orders/${id}`);
   const flow = useApi<Timeline>(`/work-orders/${id}/timeline`);
   const techs = useApi<{ rows: Tech[] }>('/users?page=1&limit=100&role=TECNICO');
 
@@ -110,7 +111,7 @@ export default function OrdenDetallePage({ params }: { params: Promise<{ id: str
   if (loading && !data) {
     return (<><Topbar title="Orden de trabajo" /><div className="grid gap-4 p-6 lg:grid-cols-3"><Skeleton className="h-64 lg:col-span-2" /><Skeleton className="h-64" /></div></>);
   }
-  if (!data) return null;
+  if (!data) return <LoadError title="Orden de trabajo" error={error} onRetry={refetch} backHref="/ordenes" backLabel="Volver a órdenes" />;
 
   const next = STATUS_TRANSITIONS[data.status] ?? [];
   const inspection = flow.data?.inspections.find((i) => i.kind === 'INGRESO');

@@ -8,6 +8,7 @@ import {
   Wrench, Wallet, History, AlertTriangle, X, Star, Plus,
 } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
+import { LoadError } from '@/components/load-error';
 import { Button, Card, CardBody, CardHeader, CardTitle, Skeleton, Badge, Table, Th, Td, EmptyState, Stat } from '@/components/ui';
 import { PlateTag } from '@/components/vehicle-bits';
 import { StatusBadge } from '@/components/status-badge';
@@ -50,7 +51,7 @@ interface Vehicle {
 export default function FichaVehiculoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { can } = useAuth();
-  const { data, loading, refetch } = useApi<Vehicle>(`/vehicles/${id}`);
+  const { data, loading, refetch, error } = useApi<Vehicle>(`/vehicles/${id}`);
   const [tab, setTab] = useState<'fotos' | 'danos' | 'ficha'>('fotos');
   const [uploading, setUploading] = useState(false);
 
@@ -71,7 +72,7 @@ export default function FichaVehiculoPage({ params }: { params: Promise<{ id: st
   if (loading && !data) {
     return (<><Topbar title="Ficha del vehículo" /><div className="space-y-4 p-6"><Skeleton className="h-48" /><Skeleton className="h-80" /></div></>);
   }
-  if (!data) return null;
+  if (!data) return <LoadError title="Vehículo" error={error} onRetry={refetch} backHref="/vehiculos" backLabel="Volver a vehículos" />;
 
   const hex = colorHex(data.color);
   const cover = data.photoUrl ?? data.photos[0]?.url ?? null;

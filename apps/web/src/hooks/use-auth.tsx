@@ -1,8 +1,8 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { api, keepSessionAlive, onSessionLost } from '@/lib/api';
 import { can, type Permission, type Role } from '@taller/shared';
 
 export interface AuthUser {
@@ -30,6 +30,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
+  const enLogin = useRef(false);
+  enLogin.current = pathname === '/login';
 
   useEffect(() => {
     api
@@ -38,6 +41,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
+
+  /**
+   * El access token dura 15 minutos. En vez de esperar a que venza y que la
+   * pantalla se coma un 401, se renueva sola cada 12: al volver a la pestaña,
+   * al recuperar la red y por reloj. Así el usuario nunca ve la falla.
+   */
+  useEffect(() => {
+    if (!user) return;
+    const renovar = () => { void keepSessionAlive(); };
+    const reloj = setInterval(renovar, 12 * 60 * 1000);
+    const alVolver = () => { if (!document.hidden) renovar(); };
+    document.addEventListener('visibilitychange', alVolver);
+    window.addEventListener('online', renovar);
+    return () => {
+      clearInterval(reloj);
+      document.removeEventListener('visibilitychange', alVolver);
+      window.removeEventListener('online', renovar);
+    };
+  }, [user]);
+
+  /** Si el refresh tampoco sirvió, la sesión se terminó: al login, sin vueltas. */
+  useEffect(() => onSessionLost(() => {
+    setUser(null);
+    if (!enLogin.current) router.replace('/login');
+  }), [router]);
 
   const login = useCallback(
     async (email: string, password: string) => {

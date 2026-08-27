@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import {
   LayoutDashboard, ClipboardList, Users, Car, Package, Receipt, Wrench,
   Activity, Settings, ChevronLeft, ChevronDown, Menu, LogOut, CalendarDays, FileText,
-  Truck, PhoneCall, ShieldCheck, DoorOpen, FileWarning, LayoutList,
+  Truck, ShieldCheck, DoorOpen, FileWarning, LayoutList,
 } from 'lucide-react';
 import { cn, initials } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
@@ -56,7 +56,6 @@ const NAV: { section: string; items: NavItem[] }[] = [
     items: [
       { href: '/clientes', label: 'Clientes', icon: Users, permission: 'customer:read' },
       { href: '/vehiculos', label: 'Vehículos', icon: Car, permission: 'vehicle:read' },
-      { href: '/postventa', label: 'Postventa', icon: PhoneCall, permission: 'followup:read' },
       { href: '/aseguradoras', label: 'Aseguradoras', icon: ShieldCheck, permission: 'catalog:read' },
     ],
   },

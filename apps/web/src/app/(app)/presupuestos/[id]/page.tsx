@@ -7,6 +7,7 @@ import {
   Wrench, CalendarClock, Save, Mail, MessageCircle,
 } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
+import { LoadError } from '@/components/load-error';
 import { Button, Card, CardBody, CardHeader, CardTitle, Input, Select, Textarea, Skeleton, Badge, Table, Th, Td } from '@/components/ui';
 import { useApi } from '@/hooks/use-api';
 import { api } from '@/lib/api';
@@ -51,7 +52,7 @@ export default function PresupuestoPage({ params }: { params: Promise<{ id: stri
   const { id } = use(params);
   const { can } = useAuth();
   const toast = useToast();
-  const { data, loading, refetch } = useApi<Quote>(`/quotes/${id}`);
+  const { data, loading, refetch, error } = useApi<Quote>(`/quotes/${id}`);
 
   const [decisions, setDecisions] = useState<Record<string, ItemDecision>>({});
   const [channel, setChannel] = useState('TELEFONO');
@@ -85,7 +86,7 @@ export default function PresupuestoPage({ params }: { params: Promise<{ id: stri
   if (loading && !data) {
     return (<><Topbar title="Presupuesto" /><div className="space-y-4 p-6"><Skeleton className="h-24" /><Skeleton className="h-80" /></div></>);
   }
-  if (!data) return null;
+  if (!data) return <LoadError title="Presupuesto" error={error} onRetry={refetch} backHref="/presupuestos" backLabel="Volver a presupuestos" />;
 
   const editable = data.status === 'BORRADOR' || data.status === 'ENVIADO';
   const decidable = editable || data.status === 'APROBADO_PARCIAL';

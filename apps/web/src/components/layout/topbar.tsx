@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Bell, Moon, Sun, Monitor, Search, Wifi, WifiOff, ChevronRight, LogOut,
-  Settings, Keyboard, User as UserIcon, Check, CircleDot,
+  Bell, Moon, Sun, Monitor, Search, WifiOff, ChevronRight, LogOut,
+  Settings, Keyboard, User as UserIcon, Check,
 } from 'lucide-react';
 import { getSocket, useSocketEvent } from '@/hooks/use-socket';
 import { SOCKET_EVENTS, ROLE_LABELS } from '@taller/shared';
@@ -108,7 +108,7 @@ export function Topbar({
   const ThemeIcon = THEMES.find((t) => t.key === mode)?.icon ?? Monitor;
 
   return (
-    <header className="ts-topbar sticky top-0 z-20 flex h-16 items-center gap-4 px-5">
+    <header className="ts-topbar sticky top-0 z-20 grid h-16 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
       <div className="min-w-0">
         {crumbs.length > 1 && (
           <nav aria-label="Ruta" className="mb-0.5 flex items-center gap-1 text-[11.5px] text-[var(--subtle)]">
@@ -130,11 +130,12 @@ export function Topbar({
         {description && <p className="truncate text-[12px] text-[var(--muted)]">{description}</p>}
       </div>
 
-      {/* buscador universal */}
+      {/* Buscador universal, centrado en la barra: queda en el eje de la pantalla
+          pase lo que pase con el largo del título o de las acciones. */}
       <button
         type="button"
         onClick={palette.open}
-        className="focus-ring ml-auto hidden h-9 min-w-[230px] items-center gap-2 rounded-[var(--r)] border border-[var(--border-strong)] bg-[var(--surface-2)] px-3 text-[13px] text-[var(--subtle)] transition hover:border-[var(--brand-200)] hover:text-[var(--muted)] lg:flex"
+        className="focus-ring hidden h-9 w-[clamp(240px,24vw,360px)] items-center gap-2 rounded-full border border-[var(--border-strong)] bg-[var(--surface-2)] px-3.5 text-[13px] text-[var(--subtle)] transition hover:border-[var(--brand-200)] hover:text-[var(--muted)] lg:flex"
         aria-label="Buscar en todo el sistema"
       >
         <Search className="size-4 shrink-0" aria-hidden />
@@ -144,7 +145,7 @@ export function Topbar({
         </span>
       </button>
 
-      <div className={cn('flex items-center gap-1.5', crumbs.length <= 1 && 'lg:ml-0', 'ml-auto lg:ml-0')}>
+      <div className="flex min-w-0 items-center justify-end gap-1.5">
         {actions}
 
         <button
@@ -156,17 +157,17 @@ export function Topbar({
           <Search className="size-[18px]" aria-hidden />
         </button>
 
-        <span
-          className={cn('hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold sm:inline-flex',
-            online ? 'bg-[var(--ok-bg)] text-[var(--ok)]' : 'bg-[var(--falla-bg)] text-[var(--falla)]')}
-          data-tooltip-id="ts-tip"
-          data-tooltip-content={online ? 'Los cambios de otros puestos llegan solos' : 'Sin conexión en tiempo real: recargá para ver novedades'}
-        >
-          {online
-            ? <motion.span animate={{ opacity: [1, 0.35, 1] }} transition={{ duration: 2.2, repeat: Infinity }} className="grid place-items-center"><CircleDot className="size-3" aria-hidden /></motion.span>
-            : <WifiOff className="size-3" aria-hidden />}
-          {online ? 'En vivo' : 'Offline'}
-        </span>
+        {/* Que la conexión ande es lo normal y no merece un cartel; sólo se avisa
+            cuando se cortó, que es cuando el usuario necesita saberlo. */}
+        {!online && (
+          <span
+            className="hidden shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[var(--falla-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--falla)] sm:inline-flex"
+            data-tooltip-id="ts-tip"
+            data-tooltip-content="Sin conexión en tiempo real: recargá para ver novedades"
+          >
+            <WifiOff className="size-3" aria-hidden /> Sin conexión
+          </span>
+        )}
 
         {/* notificaciones */}
         <Menu
@@ -317,4 +318,3 @@ export function Topbar({
   );
 }
 
-export { Search, UserIcon, Wifi };

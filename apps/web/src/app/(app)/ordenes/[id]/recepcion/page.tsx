@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, ClipboardCheck, Fuel, Gauge } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
+import { LoadError } from '@/components/load-error';
 import { Button, Card, CardBody, CardHeader, CardTitle, Input, Textarea, Skeleton, Badge } from '@/components/ui';
 import { PhotoAnnotator, type DamageDraft, type Photo } from '@/components/photo-annotator';
 import { Checklist, type ChecklistValue } from '@/components/checklist';
@@ -131,7 +132,7 @@ export default function RecepcionPage({ params }: { params: Promise<{ id: string
   if (wo.loading && !wo.data) {
     return (<><Topbar title="Recepción" /><div className="space-y-4 p-6"><Skeleton className="h-24" /><Skeleton className="h-96" /></div></>);
   }
-  if (!wo.data) return null;
+  if (!wo.data) return <LoadError title="Recepción" error={wo.error} onRetry={wo.refetch} backHref="/ordenes" backLabel="Volver a órdenes" />;
 
   const requiredOk = photos.length >= 3 && !!signature;
 

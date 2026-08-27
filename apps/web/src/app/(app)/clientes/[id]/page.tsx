@@ -7,6 +7,7 @@ import {
   FileText, Receipt, CalendarDays, PhoneCall, Wallet, Plus, StickyNote, AlertTriangle,
 } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
+import { LoadError } from '@/components/load-error';
 import {
   Button, Card, CardBody, CardHeader, CardTitle, Skeleton, Badge, Table, Th, Td, EmptyState, Stat,
 } from '@/components/ui';
@@ -67,14 +68,14 @@ type Tab = (typeof TABS)[number]['key'];
 export default function ClientePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { can } = useAuth();
-  const { data, loading, refetch } = useApi<Detail>(`/customers/${id}`);
+  const { data, loading, refetch, error } = useApi<Detail>(`/customers/${id}`);
   const [tab, setTab] = useState<Tab>('vehiculos');
   const [editing, setEditing] = useState(false);
 
   if (loading && !data) {
     return (<><Topbar title="Cliente" /><div className="space-y-4 p-6"><Skeleton className="h-28" /><Skeleton className="h-96" /></div></>);
   }
-  if (!data) return null;
+  if (!data) return <LoadError title="Cliente" error={error} onRetry={refetch} backHref="/clientes" backLabel="Volver a clientes" />;
 
   const nombre = customerName(data);
   const abiertas = data.workOrders.filter((w) => !['ENTREGADO', 'CANCELADO', 'RECHAZADO'].includes(w.status)).length;

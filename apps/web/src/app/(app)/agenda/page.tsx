@@ -18,7 +18,7 @@ import {
   Wallet, CreditCard, Hash, Factory, ClipboardList, StickyNote, MessageSquare, Filter, CircleHelp,
 } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
-import { Button, Card, CardBody, Select, Badge } from '@/components/ui';
+import { Button, Select, Badge } from '@/components/ui';
 import { Modal } from '@/components/modal';
 import { useToast } from '@/components/toast';
 import { AgendaDialog } from '@/components/agenda-dialog';
@@ -267,9 +267,9 @@ export default function AgendaPage() {
         title="Agenda"
         actions={
           <>
-            <label className="flex items-center gap-1.5 text-[12.5px] text-[var(--muted)]" data-tooltip-id="ts-tip" data-tooltip-content="Muestra también las OT con fecha de entrega comprometida">
+            <label className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[12.5px] text-[var(--muted)]" data-tooltip-id="ts-tip" data-tooltip-content="Muestra también las OT con fecha de entrega comprometida">
               <input type="checkbox" className="size-4" checked={showPromised} onChange={(e) => setShowPromised(e.target.checked)} />
-              Entregas comprometidas
+              Entregas
             </label>
             {cargables.length > 0 && (
               <Button
@@ -284,7 +284,9 @@ export default function AgendaPage() {
         }
       />
 
-      <div className="space-y-4 p-6">
+      {/* El calendario es la pantalla: ocupa todo el alto disponible y no vive
+          dentro de una tarjeta, que sólo agregaba un marco y comía espacio. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-4 pt-4">
 
         {/* ---------------------------------------------- filtros por tipo */}
         <div className="flex flex-wrap items-center gap-2">
@@ -330,8 +332,7 @@ export default function AgendaPage() {
           )}
         </div>
 
-        <Card>
-          <CardBody className="ts-cal">
+        <div className="ts-cal ts-cal-full min-h-0 flex-1">
             <FullCalendar
               ref={calRef}
               plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
@@ -346,7 +347,7 @@ export default function AgendaPage() {
                 hoy: { text: 'Hoy', click: () => calRef.current?.getApi().today() },
               }}
               buttonText={{ month: 'Mes', week: 'Semana', day: 'Día', list: 'Lista' }}
-              height="auto"
+              height="100%"
               nowIndicator
               slotMinTime={grilla.desde}
               slotMaxTime={grilla.hasta}
@@ -371,10 +372,9 @@ export default function AgendaPage() {
               eventTimeFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
               slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
             />
-          </CardBody>
-        </Card>
+        </div>
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] text-[var(--muted)]">
+        <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1.5 text-[11.5px] text-[var(--muted)]">
           <span className="font-semibold">Estados:</span>
           {Object.entries(APPOINTMENT_LABELS).map(([k, label]) => (
             <span key={k} className="flex items-center gap-1.5">

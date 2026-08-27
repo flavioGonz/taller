@@ -117,3 +117,20 @@
   from { opacity: 0; transform: translateY(3px) scale(.985); }
   to   { opacity: 1; transform: none; }
 }
+
+/* --- el calendario a pantalla completa, sin tarjeta que lo encierre ---------
+   La grilla se estira hasta el borde de la ventana y el scroll queda adentro,
+   no en la página: así se ven más horas sin tener que bajar. */
+.ts-cal-full { display: flex; flex-direction: column; min-height: 0; }
+.ts-cal-full .fc { flex: 1 1 auto; min-height: 0; }
+
+/* el marco exterior lo pone la propia grilla, con una sola línea */
+.ts-cal-full .fc .fc-scrollgrid { border-radius: var(--r); overflow: hidden; }
+.ts-cal-full .fc .fc-scrollgrid,
+.ts-cal-full .fc .fc-scrollgrid-liquid { border-color: var(--border); }
+
+/* la barra de herramientas pesa menos cuando el calendario manda */
+.ts-cal-full .fc .fc-toolbar.fc-header-toolbar { margin-bottom: 10px; }
+
+/* filas más altas en mes, para que la semana respire */
+.ts-cal-full .fc .fc-daygrid-day-frame { min-height: 88px; }

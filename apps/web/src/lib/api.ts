@@ -12,6 +12,51 @@ const BASE = API_BASE;
 /** URL absoluta de un endpoint, para links directos (PDF, descargas, etc.). */
 export const apiUrl = (path: string) => `${API_BASE}${path}`;
 
+/* --------------------------------------------------------------- sesión */
+
+/**
+ * El refresh token **rota**: cada `/auth/refresh` revoca el anterior. Si una
+ * pantalla dispara cinco consultas a la vez y el access token venció, las cinco
+ * intentarían refrescar y sólo la primera lo lograría —las otras presentarían
+ * un token ya revocado y quedarían en 401—. Por eso hay un solo refresh en
+ * vuelo: el primero que llega lo hace y los demás esperan ese mismo resultado.
+ * Era exactamente lo que dejaba pantallas en blanco hasta apretar F5.
+ */
+let refrescando: Promise<boolean> | null = null;
+
+/** Rutas que no pueden refrescar, porque son las que manejan la sesión. */
+const SIN_REFRESH = ['/auth/login', '/auth/refresh', '/auth/logout'];
+
+function refrescarSesion(): Promise<boolean> {
+  if (!refrescando) {
+    refrescando = fetch(`${BASE}/auth/refresh`, { method: 'POST', credentials: 'include' })
+      .then((r) => r.ok)
+      .catch(() => false)
+      .finally(() => {
+        // se libera en el próximo tick para que las llamadas que entraron
+        // mientras tanto reciban este mismo resultado
+        setTimeout(() => { refrescando = null; }, 0);
+      });
+  }
+  return refrescando;
+}
+
+type Oyente = () => void;
+const oyentesSesion = new Set<Oyente>();
+
+/** Avisa cuando la sesión se perdió de verdad (el refresh tampoco sirvió). */
+export function onSessionLost(fn: Oyente): () => void {
+  oyentesSesion.add(fn);
+  return () => oyentesSesion.delete(fn);
+}
+
+function sesionPerdida() {
+  for (const fn of oyentesSesion) fn();
+}
+
+/** Refresca por las nuestras, antes de que venza. Lo usa el proveedor de auth. */
+export const keepSessionAlive = () => refrescarSesion();
+
 async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
@@ -22,10 +67,10 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
     },
   });
 
-  // Access token vencido → intenta refrescar una sola vez
-  if (res.status === 401 && retry && !path.startsWith('/auth/')) {
-    const refreshed = await fetch(`${BASE}/auth/refresh`, { method: 'POST', credentials: 'include' });
-    if (refreshed.ok) return request<T>(path, init, false);
+  // Access token vencido → un único refresh compartido y se reintenta
+  if (res.status === 401 && retry && !SIN_REFRESH.includes(path.split('?')[0]!)) {
+    if (await refrescarSesion()) return request<T>(path, init, false);
+    sesionPerdida();
   }
 
   if (!res.ok) {
@@ -50,8 +95,8 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
 async function requestBlob(path: string, retry = true): Promise<Blob> {
   const res = await fetch(`${BASE}${path}`, { credentials: 'include' });
   if (res.status === 401 && retry) {
-    const refreshed = await fetch(`${BASE}/auth/refresh`, { method: 'POST', credentials: 'include' });
-    if (refreshed.ok) return requestBlob(path, false);
+    if (await refrescarSesion()) return requestBlob(path, false);
+    sesionPerdida();
   }
   if (!res.ok) {
     const err = new Error(`Error ${res.status}`) as ApiError;

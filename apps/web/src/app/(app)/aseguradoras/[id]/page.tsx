@@ -7,6 +7,7 @@ import {
   Trash2, Phone, Mail, Globe, ExternalLink, ClipboardList, AlertTriangle, Check,
 } from 'lucide-react';
 import { Topbar } from '@/components/layout/topbar';
+import { LoadError } from '@/components/load-error';
 import {
   Button, Card, CardBody, CardHeader, CardTitle, Input, Select, Textarea, Skeleton, Badge,
   Table, Th, Td, EmptyState,
@@ -112,7 +113,7 @@ export default function AseguradoraPage({ params }: { params: Promise<{ id: stri
   const { id } = use(params);
   const { can } = useAuth();
   const toast = useToast();
-  const { data, loading, refetch } = useApi<Insurer>(`/insurers/${id}`);
+  const { data, loading, refetch, error } = useApi<Insurer>(`/insurers/${id}`);
   const editable = can('catalog:write');
 
   const [t, setT] = useState<Terms>(EMPTY);
@@ -140,7 +141,7 @@ export default function AseguradoraPage({ params }: { params: Promise<{ id: stri
   if (loading && !data) {
     return (<><Topbar title="Aseguradora" /><div className="space-y-4 p-6"><Skeleton className="h-24" /><Skeleton className="h-96" /></div></>);
   }
-  if (!data) return null;
+  if (!data) return <LoadError title="Aseguradora" error={error} onRetry={refetch} backHref="/aseguradoras" backLabel="Volver a aseguradoras" />;
 
   const set = <K extends keyof Terms>(k: K, v: Terms[K]) => { setT((p) => ({ ...p, [k]: v })); setSaved(false); };
   const toggleDoc = (code: string) =>
