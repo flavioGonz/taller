@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Bell, Moon, Sun, Monitor, Search, WifiOff, ChevronRight, LogOut,
+  Bell, Moon, Sun, Monitor, Search, ChevronRight, LogOut,
   Settings, Keyboard, User as UserIcon, Check,
 } from 'lucide-react';
 import { getSocket, useSocketEvent } from '@/hooks/use-socket';
@@ -13,6 +13,7 @@ import { SOCKET_EVENTS, ROLE_LABELS } from '@taller/shared';
 import { Menu, MenuItem, MenuSeparator, MenuLabel } from '@/components/menu';
 import { useCommandPalette } from '@/components/command-palette';
 import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/components/toast';
 import { cn, initials } from '@/lib/utils';
 
 type ThemeMode = 'light' | 'dark' | 'system';
@@ -51,9 +52,9 @@ export function Topbar({
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const palette = useCommandPalette();
+  const toast = useToast();
 
   const [mode, setMode] = useState<ThemeMode>('system');
-  const [online, setOnline] = useState(false);
   const [notifications, setNotifications] = useState<{ id: number; text: string; at: Date }[]>([]);
   const [mac, setMac] = useState(false);
 
@@ -74,14 +75,43 @@ export function Topbar({
     return () => mq.removeEventListener('change', onChange);
   }, []);
 
+  /**
+   * El estado de la conexión ya no ocupa lugar fijo en la barra: mientras anda
+   * —que es lo normal— no se dice nada. Si se corta, avisa un toast, y otro
+   * cuando vuelve. El corte se confirma después de unos segundos para no
+   * ladrar por un parpadeo de red.
+   */
+  const estabaCaido = useRef(false);
   useEffect(() => {
     const s = getSocket();
-    const on = () => setOnline(true);
-    const off = () => setOnline(false);
-    s.on('connect', on);
-    s.on('disconnect', off);
-    setOnline(s.connected);
-    return () => { s.off('connect', on); s.off('disconnect', off); };
+    let aviso: ReturnType<typeof setTimeout> | null = null;
+
+    const caido = () => {
+      if (aviso) return;
+      aviso = setTimeout(() => {
+        aviso = null;
+        if (s.connected) return;
+        estabaCaido.current = true;
+        toast.warn('Se cortó la conexión en vivo', 'Los cambios de otros puestos no van a llegar solos hasta que vuelva.');
+      }, 6000);
+    };
+    const vuelve = () => {
+      if (aviso) { clearTimeout(aviso); aviso = null; }
+      if (estabaCaido.current) {
+        estabaCaido.current = false;
+        toast.ok('Conexión restablecida', 'Ya vuelven a llegar los cambios de otros puestos.');
+      }
+    };
+
+    s.on('connect', vuelve);
+    s.on('disconnect', caido);
+    if (!s.connected) caido();
+    return () => {
+      if (aviso) clearTimeout(aviso);
+      s.off('connect', vuelve);
+      s.off('disconnect', caido);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useSocketEvent(SOCKET_EVENTS.NOTIFICATION, (p: unknown) => {
@@ -157,17 +187,8 @@ export function Topbar({
           <Search className="size-[18px]" aria-hidden />
         </button>
 
-        {/* Que la conexión ande es lo normal y no merece un cartel; sólo se avisa
-            cuando se cortó, que es cuando el usuario necesita saberlo. */}
-        {!online && (
-          <span
-            className="hidden shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[var(--falla-bg)] px-2.5 py-1 text-[11px] font-semibold text-[var(--falla)] sm:inline-flex"
-            data-tooltip-id="ts-tip"
-            data-tooltip-content="Sin conexión en tiempo real: recargá para ver novedades"
-          >
-            <WifiOff className="size-3" aria-hidden /> Sin conexión
-          </span>
-        )}
+        {/* El estado de la conexión no ocupa lugar en la barra: cuando se corta,
+            el aviso llega como toast y la campana queda con el ícono tachado. */}
 
         {/* notificaciones */}
         <Menu
